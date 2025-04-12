@@ -118,11 +118,11 @@ endef
 
 define Package/quectel-rm520n-thermal/postinst
 #!/bin/sh
-mkdir -p /lib/firmware/quectel_rm520n_temp
-mv /lib/firmware/quectel_rm520n_temp_sensor.dtbo /lib/firmware/quectel_rm520n_temp/quectel_rm520n_temp_sensor.dtbo
+mkdir -p /lib/firmware/quectel_rm520n
+mv /lib/firmware/quectel_rm520n_temp_sensor.dtbo /lib/firmware/quectel_rm520n/quectel_rm520n_temp_sensor.dtbo
 
-/etc/init.d/quectel_rm520n_temp enable
-/etc/init.d/quectel_rm520n_temp start
+/etc/init.d/quectel_rm520n_thermal enable
+/etc/init.d/quectel_rm520n_thermal start
 exit 0
 endef
 

@@ -22,7 +22,7 @@
 #include <uci.h>
 #include "daemon.h"
 
-#define ALT_SENSOR_PATH "/sys/devices/platform/quectel_rm520n_temp-sensor@0/cur_temp"
+#define ALT_SENSOR_PATH "/sys/devices/platform/quectel_rm520n@0/cur_temp"
 
 /* -------------------------------------------------------------------------- */
 /* write_temp_to_sensor_module()                                              */

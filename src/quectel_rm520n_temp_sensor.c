@@ -5,7 +5,7 @@
  * Registers a virtual sensor via the Thermal Framework and creates a sysfs
  * attribute "cur_temp" for manual updating via Userspace.
  *
- * Optional OF-Matching is enabled (compatible = "quectel,rm520n-temp-sensor").
+ * Optional OF-Matching is enabled (compatible = "quectel-rm520n-temp").
  * If no matching DT node is found, the sensor will not be registered.
  *
  * Note: The virtual sensor is exposed via the Thermal Framework as a Thermal Zone
@@ -61,26 +61,25 @@ static const struct thermal_zone_device_ops quectel_temp_ops = {
 };
 
 /* Sysfs read function for "cur_temp" */
-static ssize_t cur_temp_show(struct device *dev,
-                             struct device_attribute *attr, char *buf)
+static ssize_t cur_temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct quectel_temp_data *data = dev_get_drvdata(dev);
     return scnprintf(buf, PAGE_SIZE, "%d\n", data->cur_temp); // Return the current temperature
 }
 
 /* Sysfs write function for "cur_temp" */
-static ssize_t cur_temp_store(struct device *dev,
-                              struct device_attribute *attr,
-                              const char *buf, size_t count)
+static ssize_t cur_temp_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
     struct quectel_temp_data *data = dev_get_drvdata(dev);
     int val;
+
     if (kstrtoint(buf, 10, &val) == 0) // Parse the input value
     {
         data->cur_temp = val; // Update the current temperature
         dev_info(dev, "[QuectelTemp] cur_temp updated to %d m°C\n", val);
         thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED); // Notify the thermal framework
     }
+
     return count;
 }
 
@@ -93,13 +92,13 @@ static int quectel_temp_probe(struct platform_device *pdev)
     struct quectel_temp_data *data;
     int ret;
 
-    dev_info(&pdev->dev, "Probing quectel_rm520n_temp-sensor...\n");
+    dev_info(&pdev->dev, "Probing quectel_rm520n_temp...\n");
 
     // Allocate memory for the sensor data
     data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
     if (!data)
     {
-        dev_err(&pdev->dev, "Memory allocation failed for quectel_temp_data\n");
+        dev_err(&pdev->dev, "Memory allocation failed for quectel_rm520n_temp_data\n");
         return -ENOMEM;
     }
 
@@ -109,7 +108,7 @@ static int quectel_temp_probe(struct platform_device *pdev)
     // Register the sensor only if a Device Tree node is present
     if (!pdev->dev.of_node)
     {
-        dev_err(&pdev->dev, "No DT node found for quectel_rm520n_temp-sensor\n");
+        dev_err(&pdev->dev, "No DT node found for quectel_rm520n_temp\n");
         return -ENODEV;
     }
 
@@ -149,7 +148,7 @@ static int quectel_temp_remove(struct platform_device *pdev)
 /* Device Tree match table for automatic binding */
 static const struct of_device_id quectel_temp_of_match[] = {
     {
-        .compatible = "quectel,rm520n-temp-sensor",
+        .compatible = "quectel-rm520n-temp",
     },
     {/* sentinel */}};
 MODULE_DEVICE_TABLE(of, quectel_temp_of_match);
@@ -159,7 +158,7 @@ static struct platform_driver quectel_temp_driver = {
     .probe = quectel_temp_probe,
     .remove = quectel_temp_remove,
     .driver = {
-        .name = "quectel_rm520n_temp-sensor",
+        .name = "quectel_rm520n_temp",
         .of_match_table = quectel_temp_of_match,
     },
 };

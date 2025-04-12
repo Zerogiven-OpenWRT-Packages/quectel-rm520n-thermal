@@ -34,8 +34,8 @@ extern char hwmon_path[PATH_MAX]; // Path to the hwmon sensor
 /* AT command and other constants */
 #define AT_TIMEOUT_SEC 2 // Timeout for AT command responses
 #define AT_COMMAND "AT+QTEMP\r" // Command to query temperature from the modem
-#define SYSFS_PATH "/sys/kernel/quectel_rm520n_temp/temp" // Sysfs path for temperature
-#define ALT_SENSOR_PATH "/sys/devices/platform/quectel_rm520n_temp-sensor@0/cur_temp" // Alternate sensor path
+#define SYSFS_PATH "/sys/kernel/quectel_rm520n/temp" // Sysfs path for temperature
+#define ALT_SENSOR_PATH "/sys/devices/platform/quectel_rm520n@0/cur_temp" // Alternate sensor path
 #define PID_FILE "/var/run/quectel_rm520n_temp_daemon.pid" // PID file for the daemon
 
 /* Function declarations for serial communication and UCI management */

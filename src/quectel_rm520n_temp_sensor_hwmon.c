@@ -7,7 +7,7 @@
  * (in millidegrees Celsius) via the "temp1_input" attribute as well as the
  * thresholds "temp1_min", "temp1_max", and "temp1_crit".
  *
- * Optional OF-Matching is included (compatible "quectel,rm520n-temp-hwmon").
+ * Optional OF-Matching is included (compatible "quectel-rm520n-hwmon").
  * If no corresponding Device Tree node is present, a fallback platform device
  * is registered in the module code, ensuring the sensor always appears.
  */
@@ -46,8 +46,7 @@ struct quectel_hwmon_data {
 };
 
 /* hwmon Read function for temp1_input */
-static ssize_t temp1_input_show(struct device *dev,
-                                 struct device_attribute *attr, char *buf)
+static ssize_t temp1_input_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct quectel_hwmon_data *data = dev_get_drvdata(dev);
     int temp;
@@ -58,9 +57,7 @@ static ssize_t temp1_input_show(struct device *dev,
 }
 
 /* hwmon Write function for temp1_input */
-static ssize_t temp1_input_store(struct device *dev,
-                                  struct device_attribute *attr,
-                                  const char *buf, size_t count)
+static ssize_t temp1_input_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
     struct quectel_hwmon_data *data = dev_get_drvdata(dev);
     int ret, val;
@@ -75,24 +72,21 @@ static ssize_t temp1_input_store(struct device *dev,
 }
 
 /* hwmon Read function for temp1_min (low) */
-static ssize_t temp1_min_show(struct device *dev,
-                               struct device_attribute *attr, char *buf)
+static ssize_t temp1_min_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct quectel_hwmon_data *data = dev_get_drvdata(dev);
     return scnprintf(buf, PAGE_SIZE, "%d\n", data->temp_min);
 }
 
 /* hwmon Read function for temp1_max (high) */
-static ssize_t temp1_max_show(struct device *dev,
-                               struct device_attribute *attr, char *buf)
+static ssize_t temp1_max_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct quectel_hwmon_data *data = dev_get_drvdata(dev);
     return scnprintf(buf, PAGE_SIZE, "%d\n", data->temp_max);
 }
 
 /* hwmon Read function for temp1_crit (crit) */
-static ssize_t temp1_crit_show(struct device *dev,
-                                struct device_attribute *attr, char *buf)
+static ssize_t temp1_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct quectel_hwmon_data *data = dev_get_drvdata(dev);
     return scnprintf(buf, PAGE_SIZE, "%d\n", data->temp_crit);
@@ -161,7 +155,7 @@ static int quectel_hwmon_remove(struct platform_device *pdev)
 
 /* Optional OF-Matching: Automatic binding to a DT node with */
 static const struct of_device_id quectel_hwmon_of_match[] = {
-    { .compatible = "quectel,rm520n-temp-hwmon", },
+    { .compatible = "quectel-rm520n-hwmon", },
     {},
 };
 MODULE_DEVICE_TABLE(of, quectel_hwmon_of_match);
@@ -170,7 +164,7 @@ static struct platform_driver quectel_hwmon_driver = {
     .probe = quectel_hwmon_probe,
     .remove = quectel_hwmon_remove,
     .driver = {
-        .name = "quectel_rm520n_temp_sensor_hwmon",
+        .name = "quectel_rm520n_hwmon",
         .of_match_table = quectel_hwmon_of_match,
         .owner = THIS_MODULE,
     },
@@ -187,15 +181,16 @@ static int __init quectel_hwmon_init(void)
     if (ret)
         return ret;
 
-    if (!of_find_compatible_node(NULL, "quectel,rm520n-temp-hwmon", NULL)) {
-        fallback_pdev = platform_device_register_simple("quectel_rm520n_temp_sensor_hwmon", -1, NULL, 0);
+    if (!of_find_compatible_node(NULL, "quectel-rm520n-hwmon", NULL)) {
+        fallback_pdev = platform_device_register_simple("quectel_rm520n_hwmon", -1, NULL, 0);
+        
         if (IS_ERR(fallback_pdev)) {
             ret = PTR_ERR(fallback_pdev);
             platform_driver_unregister(&quectel_hwmon_driver);
             return ret;
         }
-        dev_info(&fallback_pdev->dev,
-                 "Fallback platform device registered for quectel hwmon sensor\n");
+        
+        dev_info(&fallback_pdev->dev, "Fallback platform device registered for quectel hwmon sensor\n");
     }
 
     return 0;
