@@ -4,7 +4,7 @@
  * This file contains functions for interacting with the hwmon subsystem
  * to find and write temperature values to the appropriate hwmon sensor.
  *
- * The hwmon sensor is identified by its name "quectel_rm520n_temp" in the
+ * The hwmon sensor is identified by its name "quectel_rm520n" in the
  * /sys/class/hwmon directory. If found, the temperature is written to
  * the corresponding "temp1_input" file.
  *
@@ -29,7 +29,7 @@
 
 char hwmon_path[PATH_MAX] = {0};
 
-/* Searches for the hwmon sensor with the name "quectel_rm520n_temp" */
+/* Searches for the hwmon sensor with the name "quectel_rm520n" */
 static int find_hwmon_sensor(char *path, size_t path_len)
 {
     DIR *dir;
@@ -58,7 +58,7 @@ static int find_hwmon_sensor(char *path, size_t path_len)
         if (fgets(devname, sizeof(devname), fp) != NULL)
         {
             devname[strcspn(devname, "\n")] = '\0'; // Remove newline character
-            if (strcmp(devname, "quectel_rm520n_temp") == 0)
+            if (strcmp(devname, "quectel_rm520n") == 0)
             {
                 snprintf(path, path_len, "/sys/class/hwmon/%s/temp1_input", entry->d_name);
                 fclose(fp);

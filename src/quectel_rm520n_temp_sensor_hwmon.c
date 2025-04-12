@@ -142,7 +142,7 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
 
     // Register the hwmon device
     hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
-                                                          "quectel_rm520n_temp",
+                                                          "quectel_rm520n",
                                                           data,
                                                           quectel_hwmon_groups);
     if (IS_ERR(hwmon_dev)) {
