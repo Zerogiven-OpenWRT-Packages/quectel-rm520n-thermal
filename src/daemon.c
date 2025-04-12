@@ -102,7 +102,7 @@ void read_uci_config(void)
     }
 
     struct uci_package *pkg = NULL;
-    if (uci_load(ctx, "quectel_rm520n_temp", &pkg) != UCI_OK)
+    if (uci_load(ctx, "quectel_rm520n_thermal", &pkg) != UCI_OK)
     {
         syslog(LOG_ERR, "Failed to load UCI package 'quectel_rm520n_temp'");
         uci_free_context(ctx);
