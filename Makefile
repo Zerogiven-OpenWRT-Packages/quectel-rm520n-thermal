@@ -100,12 +100,12 @@ endef
 # --- Userspace package install ---
 define Package/quectel-rm520n-thermal/install
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/etc/config/quectel_rm520n_temp \
-	                $(1)/etc/config/quectel_rm520n_temp
+	$(INSTALL_CONF) ./files/etc/config/quectel_rm520n_thermal \
+	                $(1)/etc/config/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/etc/init.d/quectel_rm520n_temp \
-	               $(1)/etc/init.d/quectel_rm520n_temp
+	$(INSTALL_BIN) ./files/etc/init.d/quectel_rm520n_thermal \
+	               $(1)/etc/init.d/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/quectel_rm520n_temp_daemon \

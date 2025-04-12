@@ -1,4 +1,4 @@
-config quectel_rm520n_temp 'settings'
+config quectel_rm520n_thermal 'settings'
     option serial_port '/dev/ttyUSB3'       # Serial port for the modem
     option interval '10'                   # Interval in seconds for temperature polling
     option baud_rate '115200'              # Baud rate for serial communication
