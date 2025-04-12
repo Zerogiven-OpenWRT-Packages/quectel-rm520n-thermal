@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            quectel_modem_temp: quectel_rm520n_temp-sensor@0 {
+                compatible = "quectel,rm520n-temp-sensor";
+                // Kein "reg", etc. – der Sensor ist rein virtuell
+            };
+        };
+    };
+};

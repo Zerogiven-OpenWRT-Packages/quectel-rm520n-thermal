@@ -1,0 +1,4 @@
+# This file defines the kernel modules to be built.
+obj-m += quectel_rm520n_temp.o
+obj-m += quectel_rm520n_temp_sensor.o
+obj-m += quectel_rm520n_temp_sensor_hwmon.o
