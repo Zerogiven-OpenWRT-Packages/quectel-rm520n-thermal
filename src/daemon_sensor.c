@@ -39,7 +39,7 @@ void write_temp_to_sensor_module(const char *temp_str)
         if (access(ALT_SENSOR_PATH, W_OK) == 0)
         {
             sensor_available = 1;
-            syslog(LOG_INFO, "Detected virtual sensor module. Will write temperature also to '%s'.", ALT_SENSOR_PATH);
+            do_log(LOG_INFO, "Detected virtual sensor module. Will write temperature also to '%s'.", ALT_SENSOR_PATH);
         }
         sensor_checked = 1;
     }
@@ -50,12 +50,12 @@ void write_temp_to_sensor_module(const char *temp_str)
     FILE *fp = fopen(ALT_SENSOR_PATH, "w");
     if (!fp)
     {
-        syslog(LOG_ERR, "Failed to open sensor path '%s': %s", ALT_SENSOR_PATH, strerror(errno));
+        do_log(LOG_ERR, "Failed to open sensor path '%s': %s", ALT_SENSOR_PATH, strerror(errno));
         return;
     }
 
     // Write the temperature value to the sensor
     fprintf(fp, "%s\n", temp_str);
     fclose(fp);
-    syslog(LOG_DEBUG, "Wrote temperature %s to %s", temp_str, ALT_SENSOR_PATH);
+    do_log(LOG_DEBUG, "Wrote temperature %s to %s", temp_str, ALT_SENSOR_PATH);
 }

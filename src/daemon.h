@@ -46,6 +46,7 @@ void process_at_response(const char *response); // Process AT command response
 void handle_at_error(char *error_value); // Handle errors in AT command responses
 void cleanup_daemon(int pid_fd, int fd); // Cleanup resources during daemon shutdown
 void read_uci_config(void); // Read configuration from UCI
+void do_log(int err, const char *message, ...);
 
 /* PID file functions */
 int create_pid_file(const char *pid_file); // Create a PID file

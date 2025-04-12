@@ -41,7 +41,7 @@ static int find_hwmon_sensor(char *path, size_t path_len)
     dir = opendir("/sys/class/hwmon");
     if (!dir)
     {
-        syslog(LOG_ERR, "Failed to open /sys/class/hwmon: %s", strerror(errno));
+        do_log(LOG_ERR, "Failed to open /sys/class/hwmon: %s", strerror(errno));
         return -1;
     }
 
@@ -84,18 +84,18 @@ void write_temp_to_hwmon(const char *temp_str)
 {
     if (hwmon_path[0] == '\0')
     {
-        syslog(LOG_ERR, "hwmon path not found, skipping write");
+        do_log(LOG_ERR, "hwmon path not found, skipping write");
         return;
     }
 
     FILE *fp = fopen(hwmon_path, "w");
     if (!fp)
     {
-        syslog(LOG_ERR, "Failed to open hwmon path '%s': %s", hwmon_path, strerror(errno));
+        do_log(LOG_ERR, "Failed to open hwmon path '%s': %s", hwmon_path, strerror(errno));
         return;
     }
 
     fprintf(fp, "%s\n", temp_str);
     fclose(fp);
-    syslog(LOG_DEBUG, "Wrote temperature %s to hwmon at %s", temp_str, hwmon_path);
+    do_log(LOG_DEBUG, "Wrote temperature %s to hwmon at %s", temp_str, hwmon_path);
 }

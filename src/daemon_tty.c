@@ -34,7 +34,7 @@ void process_at_response(const char *response)
         write_temp_to_sensor_module(error_value);
         write_temp_to_hwmon(error_value);
 
-        syslog(LOG_WARNING, "No temp_prefix in response; wrote '%s' to all outputs", error_value);
+        do_log(LOG_WARNING, "No temp_prefix in response; wrote '%s' to all outputs", error_value);
 
         return;
     }
@@ -53,7 +53,7 @@ void process_at_response(const char *response)
     write_temp_to_sensor_module(temp_str);
     write_temp_to_hwmon(temp_str);
 
-    syslog(LOG_INFO, "Extracted temperature from response: %d°C => %s (m°C)", degC, temp_str);
+    do_log(LOG_INFO, "Extracted temperature from response: %d°C => %s (m°C)", degC, temp_str);
 }
 
 /* Handles missing responses by writing an error value to sysfs */
@@ -63,7 +63,7 @@ void handle_at_error(char *error_value)
     write_temp_to_sensor_module(error_value);
     write_temp_to_hwmon(error_value);
 
-    syslog(LOG_WARNING, "No data from modem; wrote '%s' to outputs", error_value);
+    do_log(LOG_WARNING, "No data from modem; wrote '%s' to outputs", error_value);
 }
 
 /* Initializes the serial port and configures it */
@@ -72,14 +72,14 @@ int init_serial_port(const char *port, speed_t baud_rate)
     int fd = open(port, O_RDWR | O_NOCTTY);
     if (fd < 0)
     {
-        syslog(LOG_ERR, "Failed to open serial port %s: %s", port, strerror(errno));
+        do_log(LOG_ERR, "Failed to open serial port %s: %s", port, strerror(errno));
         return -1;
     }
     struct termios tty;
     memset(&tty, 0, sizeof(tty));
     if (tcgetattr(fd, &tty) != 0)
     {
-        syslog(LOG_ERR, "Failed to get termios for %s: %s", port, strerror(errno));
+        do_log(LOG_ERR, "Failed to get termios for %s: %s", port, strerror(errno));
         close(fd);
         return -1;
     }
@@ -93,7 +93,7 @@ int init_serial_port(const char *port, speed_t baud_rate)
     tty.c_cc[VTIME] = 1;
     if (tcsetattr(fd, TCSANOW, &tty) != 0)
     {
-        syslog(LOG_ERR, "Failed to set termios for %s: %s", port, strerror(errno));
+        do_log(LOG_ERR, "Failed to set termios for %s: %s", port, strerror(errno));
         close(fd);
         return -1;
     }
@@ -130,7 +130,7 @@ int send_at_command(int fd, const char *command, char *response, size_t response
     tcflush(fd, TCIFLUSH);
     if (write(fd, command, strlen(command)) < 0)
     {
-        syslog(LOG_ERR, "Failed to write AT command to serial port");
+        do_log(LOG_ERR, "Failed to write AT command to serial port");
         return -1;
     }
     return read_modem_response(fd, response, response_len);
