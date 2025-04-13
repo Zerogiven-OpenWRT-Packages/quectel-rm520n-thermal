@@ -5,7 +5,7 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME    := quectel-rm520n-thermal
 PKG_VERSION := 1.0.0
-PKG_RELEASE := 1
+PKG_RELEASE := 2
 
 PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
