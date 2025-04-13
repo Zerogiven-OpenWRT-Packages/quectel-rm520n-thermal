@@ -16,7 +16,7 @@ jobs:
       - id: set
         run: |
           # Hier definieren wir zentral, welche OpenWRT-Versionen gebaut werden sollen.
-          echo "::set-output name=versions::$(echo '["23.05","24.10"]')"
+          echo "::set-output name=versions::$(echo '["23.05.5","24.10.0"]')"
 
   build:
     name: Build OpenWRT IPK
