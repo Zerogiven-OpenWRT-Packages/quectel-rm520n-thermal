@@ -1,12 +1,13 @@
 name: Build and Release OpenWRT IPK
 
+env:
+  OPENWRT_VERSIONS: "22.03 23.05"
+
 on:
   push:
     tags:
       - "*.*.*-r*"
-
-env:
-  OPENWRT_VERSIONS: "22.03 23.05"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        openwrt_version: ["22.03", "23.05"]
+        package_version: ["${{ github.event.inputs.package_version }}"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -22,7 +23,7 @@ jobs:
       - name: Set up OpenWRT SDK
         uses: openwrt/gh-action-sdk@main
         with:
-          ARCH: "x86_64-${{ matrix.openwrt_version }}"
+          ARCH: "x86_64-${{ matrix.package_version }}"
 
       - name: Build IPK package
         run: |
@@ -31,8 +32,8 @@ jobs:
       - name: Upload IPK artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: "ipk-${{ matrix.openwrt_version }}"
-          path: "bin/packages/x86_64_${{ matrix.openwrt_version }}/packages/*.ipk"
+          name: "ipk-${{ matrix.package_version }}"
+          path: "bin/packages/x86_64_${{ matrix.package_version }}/packages/*.ipk"
 
   release:
     name: Create GitHub Release
@@ -64,10 +65,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{ join(matrix.openwrt_version, 'artifacts/${{ matrix.openwrt_version }}/*.ipk\n') }}
+            ${{ join(matrix.package_version, 'artifacts/${{ matrix.package_version }}/*.ipk\n') }}
           body: |
             ## Downloads
 
-            ${{ join(matrix.openwrt_version, '### OpenWRT ${{ matrix.openwrt_version }}\n- [quectel-rm520n-thermal_1.0.0-r1_${{ matrix.openwrt_version }}_all.ipk](artifacts/${{ matrix.openwrt_version }}/quectel-rm520n-thermal_1.0.0-r1_${{ matrix.openwrt_version }}_all.ipk)\n- [kmod-quectel-rm520n-thermal_${{ matrix.openwrt_version }}.1.0.0-r1_all.ipk](artifacts/${{ matrix.openwrt_version }}/kmod-quectel-rm520n-thermal_${{ matrix.openwrt_version }}.1.0.0-r1_all.ipk)\n') }}
+            ${{ join(matrix.package_version, '### OpenWRT ${{ matrix.package_version }}\n- [quectel-rm520n-thermal_1.0.0-r1_${{ matrix.package_version }}_all.ipk](artifacts/${{ matrix.package_version }}/quectel-rm520n-thermal_1.0.0-r1_${{ matrix.package_version }}_all.ipk)\n- [kmod-quectel-rm520n-thermal_${{ matrix.package_version }}.1.0.0-r1_all.ipk](artifacts/${{ matrix.package_version }}/kmod-quectel-rm520n-thermal_${{ matrix.package_version }}.1.0.0-r1_all.ipk)\n') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
