@@ -24,16 +24,28 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include "daemon.h"
 
 #define PID_FILE "/var/run/quectel_rm520n_temp_daemon.pid"
 #define AT_COMMAND "AT+QTEMP\r"
+#define MAX_PATHS 10
 
 char serial_port[64] = "/dev/ttyUSB2"; // Default serial port
 int interval = 10;                     // Default polling interval in seconds
 speed_t baud_rate = B115200;           // Default baud rate
 char error_value[64] = "N/A";
 int foreground = 1;
+
+// Add a mutex to protect shared resources
+static pthread_mutex_t temp_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static struct {
+    char path[256];
+    bool checked;
+    bool available;
+} path_status[MAX_PATHS];
 
 /* Main function */
 int main(int argc, char *argv[])
@@ -51,22 +63,22 @@ int main(int argc, char *argv[])
     if (check_pid_file(PID_FILE))
     {
         do_log(LOG_ERR, "Another instance of the daemon is already running.");
-
         return 1;
     }
 
     if (foreground == 1)
     {
         pid_fd = create_pid_file(PID_FILE);
-        
-        if (pid_fd < 0) {
+        if (pid_fd < 0)
+        {
             return 1;
         }
     }
 
     // Initialize the serial port
     int fd = init_serial_port(serial_port, baud_rate);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         return 1;
     }
 
@@ -189,19 +201,66 @@ void read_uci_config(void)
     uci_free_context(ctx);
 }
 
-/* Writes the temperature value to SYSFS_PATH */
-void write_temp_to_sysfs(const char *temp_str)
-{
-    FILE *fp = fopen(SYSFS_PATH, "w");
-    if (!fp)
-    {
-        do_log(LOG_ERR, "Failed to open sysfs path '%s' for writing: %s", SYSFS_PATH, strerror(errno));
+int find_or_add_path(const char *path) {
+    for (int i = 0; i < MAX_PATHS; i++) {
+        if (path_status[i].checked && strcmp(path_status[i].path, path) == 0) {
+            return i; // Path already exists
+        }
+    }
+
+    for (int i = 0; i < MAX_PATHS; i++) {
+        if (!path_status[i].checked) {
+            strncpy(path_status[i].path, path, sizeof(path_status[i].path) - 1);
+            path_status[i].path[sizeof(path_status[i].path) - 1] = '\0';
+            path_status[i].checked = true;
+            path_status[i].available = (access(path, W_OK) == 0);
+            if (!path_status[i].available) {
+                do_log(LOG_ERR, "Path '%s' is not available: %s", path, strerror(errno));
+            }
+            return i; // New path added
+        }
+    }
+
+    do_log(LOG_ERR, "Path tracking limit reached, cannot track '%s'", path);
+    return -1; // No space left
+}
+
+/* Writes the temperature value to a specified path */
+void write_temp_to_path(const char *path, const char *temp_str) {
+    int index = find_or_add_path(path);
+    if (index == -1) {
+        do_log(LOG_ERR, "Path tracking limit reached, cannot track '%s'", path);
+        return;
+    }
+
+    if (!path_status[index].checked) {
+        path_status[index].available = (access(path, W_OK) == 0);
+        path_status[index].checked = true;
+        if (!path_status[index].available) {
+            do_log(LOG_ERR, "Path '%s' is not available: %s", path, strerror(errno));
+            return;
+        }
+    }
+
+    if (!path_status[index].available) {
+        return;
+    }
+
+    pthread_mutex_lock(&temp_mutex);
+
+    FILE *fp = fopen(path, "w");
+    if (!fp) {
+        do_log(LOG_ERR, "Failed to open path '%s': %s", path, strerror(errno));
+        pthread_mutex_unlock(&temp_mutex);
         return;
     }
 
     fprintf(fp, "%s\n", temp_str);
     fclose(fp);
-    do_log(LOG_DEBUG, "Wrote temperature %s to %s", temp_str, SYSFS_PATH);
+
+    pthread_mutex_unlock(&temp_mutex);
+
+    do_log(LOG_DEBUG, "Wrote temperature %s to %s", temp_str, path);
 }
 
 /* Creates a PID file to ensure only one instance of the daemon runs */
@@ -255,12 +314,15 @@ int check_pid_file(const char *pid_file)
     return 0;
 }
 
-void do_log(int err, const char *message, ...) {
+/* Logs messages to syslog and optionally to stdout/stderr if in foreground mode */
+void do_log(int err, const char *message, ...)
+{
     va_list args;
 
     va_start(args, message);
 
-    if (foreground == 1) {
+    if (foreground == 1)
+    {
         FILE *out = (err == LOG_ERR) ? stderr : stdout;
         fprintf(out, "%i: ", err);
         vfprintf(out, message, args);

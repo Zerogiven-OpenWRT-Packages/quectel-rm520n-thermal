@@ -4,6 +4,9 @@
  * Header file for the Quectel RM520N temperature daemon.
  * Provides function declarations, constants, and global variables for managing
  * serial communication, UCI configuration, and temperature sensor handling.
+ *
+ * Author: Christopher Sollinger
+ * License: GPL
  */
 
 #ifndef QUECTEL_RM520N_TEMP_DAEMON_H
@@ -38,6 +41,8 @@ extern char hwmon_path[PATH_MAX]; // Path to the hwmon sensor
 #define ALT_SENSOR_PATH "/sys/devices/platform/quectel_rm520n@0/cur_temp" // Alternate sensor path
 #define PID_FILE "/var/run/quectel_rm520n_temp_daemon.pid" // PID file for the daemon
 
+#define MAX_PATHS 10
+
 /* Function declarations for serial communication and UCI management */
 int init_serial_port(const char *port, speed_t baud_rate); // Initialize serial port
 int send_at_command(int fd, const char *command, char *response, size_t response_len); // Send AT command
@@ -57,5 +62,11 @@ int init_hwmon_sensor(void); // Initialize hwmon sensor
 void write_temp_to_sysfs(const char *temp_str); // Write temperature to sysfs
 void write_temp_to_hwmon(const char *temp_str); // Write temperature to hwmon path
 void write_temp_to_sensor_module(const char *temp_str); // Write temperature to sensor module
+
+// Add a generic function declaration for writing temperature values
+void write_temp_to_path(const char *path, const char *temp_str);
+
+/* Function declarations for path tracking */
+int find_or_add_path(const char *path);
 
 #endif /* QUECTEL_RM520N_TEMP_DAEMON_H */

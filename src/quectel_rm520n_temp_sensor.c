@@ -10,6 +10,9 @@
  *
  * Note: The virtual sensor is exposed via the Thermal Framework as a Thermal Zone
  * under /sys/class/thermal.
+ *
+ * Author: Christopher Sollinger
+ * License: GPL
  */
 
 #include <linux/module.h>
@@ -39,8 +42,7 @@
 #endif
 
 /* Data structure to store the current temperature (in m°C) */
-struct quectel_temp_data
-{
+struct quectel_temp_data {
     struct thermal_zone_device *tzd; /* Handle to the Thermal Zone */
     int cur_temp;                    /* Current temperature in milli-degrees Celsius (m°C) */
 };
@@ -73,8 +75,7 @@ static ssize_t cur_temp_store(struct device *dev, struct device_attribute *attr,
     struct quectel_temp_data *data = dev_get_drvdata(dev);
     int val;
 
-    if (kstrtoint(buf, 10, &val) == 0) // Parse the input value
-    {
+    if (kstrtoint(buf, 10, &val) == 0) { // Parse the input value
         data->cur_temp = val; // Update the current temperature
         dev_info(dev, "[QuectelTemp] cur_temp updated to %d m°C\n", val);
         thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED); // Notify the thermal framework
@@ -96,8 +97,7 @@ static int quectel_temp_probe(struct platform_device *pdev)
 
     // Allocate memory for the sensor data
     data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-    if (!data)
-    {
+    if (!data) {
         dev_err(&pdev->dev, "Memory allocation failed for quectel_rm520n_temp_data\n");
         return -ENOMEM;
     }
@@ -106,16 +106,14 @@ static int quectel_temp_probe(struct platform_device *pdev)
     data->cur_temp = 40000;
 
     // Register the sensor only if a Device Tree node is present
-    if (!pdev->dev.of_node)
-    {
+    if (!pdev->dev.of_node) {
         dev_err(&pdev->dev, "No DT node found for quectel_rm520n_temp\n");
         return -ENODEV;
     }
 
     // Register the thermal zone with the thermal framework
     data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
-    if (IS_ERR(data->tzd))
-    {
+    if (IS_ERR(data->tzd)) {
         ret = PTR_ERR(data->tzd);
         dev_err(&pdev->dev, "Failed to register thermal zone via DT, error %d\n", ret);
         return ret;
@@ -127,8 +125,7 @@ static int quectel_temp_probe(struct platform_device *pdev)
 
     // Create the sysfs file for "cur_temp"
     ret = device_create_file(&pdev->dev, &dev_attr_cur_temp);
-    if (ret)
-    {
+    if (ret) {
         dev_err(&pdev->dev, "Failed to create cur_temp sysfs file, error %d\n", ret);
         return ret;
     }
@@ -147,10 +144,9 @@ static int quectel_temp_remove(struct platform_device *pdev)
 
 /* Device Tree match table for automatic binding */
 static const struct of_device_id quectel_temp_of_match[] = {
-    {
-        .compatible = "quectel-rm520n-temp",
-    },
-    {/* sentinel */}};
+    { .compatible = "quectel-rm520n-temp", },
+    { /* sentinel */ }
+};
 MODULE_DEVICE_TABLE(of, quectel_temp_of_match);
 
 /* Platform driver structure */

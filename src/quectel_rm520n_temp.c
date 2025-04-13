@@ -7,6 +7,9 @@
  *
  * The module creates a sysfs directory "quectel_rm520n" with a file
  * "temp" that allows reading and writing the temperature value.
+ *
+ * Author: Christopher Sollinger
+ * License: GPL
  */
 
 #include <linux/module.h>
@@ -33,12 +36,20 @@
 #define PKG_COPYRIGHT_YEAR "2025"
 #endif
 
+// Replace magic numbers with named constants
+#define DEFAULT_TEMP 40000 // 40°C in m°C
+#define TEMP_MIN -30000    // -30°C in m°C
+#define TEMP_MAX 75000     // 75°C in m°C
+#define TEMP_CRIT 85000    // 85°C in m°C
+
 // Buffer to store the current temperature value
 static char modem_temp[16] = "N/A";
 
 // Read function: Returns the current temperature value
 static ssize_t temp_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    (void)kobj;
+    (void)attr;
     // Format the temperature value into the buffer
     return scnprintf(buf, PAGE_SIZE, "%s\n", modem_temp);
 }
@@ -46,12 +57,15 @@ static ssize_t temp_show(struct kobject *kobj, struct kobj_attribute *attr, char
 // Write function: Updates the temperature value (only root can write)
 static ssize_t temp_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    // Copy up to 15 bytes (1 byte reserved for '\0')
+    (void)kobj;
+    (void)attr;
     size_t len = (count < sizeof(modem_temp)) ? count : (sizeof(modem_temp) - 1);
 
-    memcpy(modem_temp, buf, len);
+    for (size_t i = 0; i < len; i++)
+    {
+        modem_temp[i] = buf[i];
+    }
 
-    // Remove the last character if it is '\n'
     if (len > 0 && modem_temp[len - 1] == '\n')
     {
         len--;
