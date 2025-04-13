@@ -1,0 +1,73 @@
+name: Build and Release OpenWRT IPK
+
+on:
+  push:
+    tags:
+      - "*.*.*-r*"
+
+env:
+  OPENWRT_VERSIONS: "22.03 23.05"
+
+jobs:
+  build:
+    name: Build OpenWRT IPK
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        openwrt_version: ["22.03", "23.05"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up OpenWRT SDK
+        uses: openwrt/gh-action-sdk@main
+        with:
+          ARCH: "x86_64-${{ matrix.openwrt_version }}"
+
+      - name: Build IPK package
+        run: |
+          make package/compile V=s
+
+      - name: Upload IPK artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: "ipk-${{ matrix.openwrt_version }}"
+          path: "bin/packages/x86_64_${{ matrix.openwrt_version }}/packages/*.ipk"
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        run: |
+          for version in $OPENWRT_VERSIONS; do
+            mkdir -p artifacts/$version
+            mv $(find . -name "ipk-$version") artifacts/$version
+          done
+
+      - name: Modify IPK filenames
+        run: |
+          for version in $OPENWRT_VERSIONS; do
+            # Rename the package file
+            for file in artifacts/$version/quectel-rm520n-thermal_*_all.ipk; do
+              mv "$file" "${file%.ipk}_${version}.ipk"
+            done
+
+            # Rename the kernel module file
+            for file in artifacts/$version/kmod-quectel-rm520n-thermal_*_all.ipk; do
+              mv "$file" "${file%_all.ipk}_${version}_all.ipk"
+            done
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ join(matrix.openwrt_version, 'artifacts/${{ matrix.openwrt_version }}/*.ipk\n') }}
+          body: |
+            ## Downloads
+
+            ${{ join(matrix.openwrt_version, '### OpenWRT ${{ matrix.openwrt_version }}\n- [quectel-rm520n-thermal_1.0.0-r1_${{ matrix.openwrt_version }}_all.ipk](artifacts/${{ matrix.openwrt_version }}/quectel-rm520n-thermal_1.0.0-r1_${{ matrix.openwrt_version }}_all.ipk)\n- [kmod-quectel-rm520n-thermal_${{ matrix.openwrt_version }}.1.0.0-r1_all.ipk](artifacts/${{ matrix.openwrt_version }}/kmod-quectel-rm520n-thermal_${{ matrix.openwrt_version }}.1.0.0-r1_all.ipk)\n') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
