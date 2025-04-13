@@ -6,11 +6,11 @@ This project provides a set of tools and kernel modules for managing the tempera
 
 ## Features
 
-- **OpenWRT Integration**: Fully compatible with OpenWRT build systems, allowing seamless integration into custom firmware builds.
-- **Dynamic Device Tree Overlay (DTO)**: Supports dynamic registration of virtual sensors via DTOs.
+- **OpenWRT Integration**: Fully compatible with OpenWRT build systems for seamless integration into custom firmware builds.
+- **Dynamic Device Tree Overlays (DTO)**: Supports dynamic registration of virtual sensors via DTOs.
 - **Configurable Daemon**: A userspace daemon reads modem temperature via AT commands and updates sysfs, virtual sensors, and hwmon nodes.
 - **Kernel Modules**: Includes kernel modules for sysfs-based temperature reporting, hwmon integration, and virtual thermal sensors.
-- **Open Source**: Licensed under the MIT License for maximum flexibility.
+- **Open Source**: Licensed under the GNU General Public License v2 for maximum flexibility.
 
 ## Components
 
@@ -26,7 +26,7 @@ This project provides a set of tools and kernel modules for managing the tempera
    - A DTO file (`quectel_rm520n_temp_sensor_overlay.dts`) for dynamic sensor registration.
 
 4. **Configuration**:
-   - Configurable via UCI (`/etc/config/quectel_rm520n_temp`).
+   - Configurable via UCI (`/etc/config/quectel_rm520n_thermal`).
 
 ## Installation
 
@@ -40,7 +40,7 @@ This project provides a set of tools and kernel modules for managing the tempera
 1. Clone this repository into your OpenWRT package directory:
 
    ```bash
-   git clone https://github.com/your-repo/quectel-rm520n-thermal.git package/quectel-rm520n-thermal
+   git clone https://github.com/your-repo/quectel-rm520n-thermal.git package/quectel_rm520n-thermal
    ```
 
 2. Add the package to your build configuration:
@@ -61,21 +61,25 @@ This project provides a set of tools and kernel modules for managing the tempera
 
 ### Installing on an Existing System
 
-If you already have OpenWRT installed, you can build and install the package manually:
+If OpenWRT is already installed, you can build and install the package manually:
 
 ```bash
 make package/quectel-rm520n-thermal/compile V=s
 opkg install bin/packages/.../quectel-rm520n-thermal.ipk
 ```
 
+### Note on Automatic Service Registration
+
+The package automatically registers the daemon as a service, starts it after installation, and enables it for autostart. No additional steps are required to manually activate the daemon.
+
 ## Configuration
 
 ### UCI Configuration
 
-Edit the configuration file at `/etc/config/quectel_rm520n_temp`:
+Edit the configuration file at `/etc/config/quectel_rm520n_thermal`:
 
 ```ini
-config quectel_rm520n_temp 'settings'
+config quectel_rm520n_thermal 'settings'
     option serial_port '/dev/ttyUSB3'
     option interval '10'
     option baud_rate '115200'
@@ -94,15 +98,35 @@ config quectel_rm520n_temp 'settings'
 Enable and start the daemon:
 
 ```bash
-/etc/init.d/quectel_rm520n_temp enable
-/etc/init.d/quectel_rm520n_temp start
+/etc/init.d/quectel_rm520n_thermal enable
+/etc/init.d/quectel_rm520n_thermal start
 ```
 
 ## Usage
 
-- **Sysfs Interface**: Access temperature via `/sys/kernel/quectel_rm520n_temp/temp`.
+- **Sysfs Interface**: Access temperature via `/sys/kernel/quectel_rm520n/temp`.
 - **Virtual Sensor**: Update and monitor temperature via `/sys/devices/platform/quectel_rm520n_temp-sensor@0/cur_temp`.
 - **Hwmon Integration**: Check `/sys/class/hwmon/hwmonX/temp1_input` for temperature values.
+
+## Screenshot
+
+Below is a screenshot showcasing the thermal management tools in action:
+
+![Thermal Management Tools Screenshot](Screenshot.png)
+
+## Tip: Finding the hwmon Interface by Name
+
+To easily locate the hwmon interface for the Quectel RM520N, you can use the following command:
+
+```bash
+for hwmon in /sys/class/hwmon/*; do \
+  if [ "$(cat $hwmon/name)" = "quectel_rm520n" ]; then \
+    echo "Found hwmon interface: $hwmon"; \
+  fi; \
+done
+```
+
+This script iterates through all hwmon entries and checks their `name` attribute for `quectel_rm520n`. Once found, it prints the path to the corresponding hwmon interface.
 
 ## License
 
