@@ -1,12 +1,13 @@
 name: Build and Release OpenWRT IPK
 
 env:
-  OPENWRT_VERSIONS: "23.05 24.10"
+  # Zentrales Setzen der OpenWRT-Versionen (als JSON-Array)
+  OPENWRT_VERSIONS: '["23.05", "24.10"]'
 
 on:
   push:
     tags:
-      - "*\\.*\\.*-r*"
+      - "*.*.*-r*"
   workflow_dispatch:
 
 jobs:
@@ -14,62 +15,91 @@ jobs:
     name: Build OpenWRT IPK
     runs-on: ubuntu-latest
     strategy:
+      # Nutzt das zentrale JSON-Array für die Matrix
       matrix:
-        package_version: ["${{ github.event.inputs.package_version }}"]
+        openwrt_version: ${{ fromJson(env.OPENWRT_VERSIONS) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up OpenWRT SDK
         uses: openwrt/gh-action-sdk@main
-        with:
-          ARCH: "x86_64-${{ matrix.package_version }}"
+        env:
+          # Hier wird die Version dynamisch in ARCH eingebunden
+          ARCH: "x86_64-${{ matrix.openwrt_version }}"
 
       - name: Build IPK package
         run: |
           make package/compile V=s
 
-      - name: Upload IPK artifacts
+      - name: Collect IPK packages
+        run: |
+          # Lege einen Unterordner für die jeweilige OpenWRT-Version an
+          mkdir -p artifacts/${{ matrix.openwrt_version }}
+          # Kopiere alle erstellten IPK-Dateien in den Versions-Unterordner
+          cp -v bin/packages/x86_64_${{ matrix.openwrt_version }}/packages/*.ipk artifacts/${{ matrix.openwrt_version }}/
+
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: "ipk-${{ matrix.package_version }}"
-          path: "bin/packages/x86_64_${{ matrix.package_version }}/packages/*.ipk"
-          if-no-files-found: error
+          # Artefaktname enthält die OpenWRT-Version
+          name: "ipk-${{ matrix.openwrt_version }}"
+          path: "artifacts/${{ matrix.openwrt_version }}/"
 
   release:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    env:
+      OPENWRT_VERSIONS: ${{ env.OPENWRT_VERSIONS }}
     steps:
-      - name: Download build artifacts
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Organize Artifacts
         run: |
-          for version in $OPENWRT_VERSIONS; do
-            mkdir -p artifacts/$version
-            mv $(find . -name "ipk-$version") artifacts/$version
+          # Konvertiere das JSON-Array in eine whitespace-separierte Liste
+          VERSIONS=$(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' "${{ env.OPENWRT_VERSIONS }}")
+          mkdir -p artifacts_all
+          for version in $VERSIONS; do
+            if [ -d "ipk-${version}" ]; then
+              echo "Processing version: $version"
+              mkdir -p artifacts_all/${version}
+              cp -v ipk-${version}/* artifacts_all/${version}/
+            else
+              echo "Artifact für Version $version nicht gefunden!"
+            fi
           done
 
-      - name: Modify IPK filenames
+      - name: Rename IPK files
         run: |
-          for version in $OPENWRT_VERSIONS; do
-            # Rename the package file
-            for file in artifacts/$version/quectel-rm520n-thermal_*_all.ipk; do
-              mv "$file" "${file%.ipk}_${version}.ipk"
+          # Optional: Datei-Umbennenung zur besseren Unterscheidung der Version in den Dateinamen
+          for version in $(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' "${{ env.OPENWRT_VERSIONS }}"); do
+            # Beispiel: Umbenennung von Standard-Paketen
+            for file in artifacts_all/${version}/quectel-rm520n-thermal_*_all.ipk; do
+              if [ -f "$file" ]; then
+                mv "$file" "${file%.ipk}_${version}.ipk"
+              fi
             done
-
-            # Rename the kernel module file
-            for file in artifacts/$version/kmod-quectel-rm520n-thermal_*_all.ipk; do
-              mv "$file" "${file%_all.ipk}_${version}_all.ipk"
+            # Beispiel: Umbenennung von Kernelmodul-Paketen
+            for file in artifacts_all/${version}/kmod-quectel-rm520n-thermal_*_all.ipk; do
+              if [ -f "$file" ]; then
+                mv "$file" "${file%_all.ipk}_${version}_all.ipk"
+              fi
             done
           done
 
-      - name: Create Release
+      - name: Create ZIP archive of artifacts
+        run: |
+          zip -r openwrt_packages.zip artifacts_all
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            ${{ join(matrix.package_version, 'artifacts/${{ matrix.package_version }}/*.ipk\n') }}
+          files: openwrt_packages.zip
           body: |
-            ## Downloads
+            ## OpenWRT Packages
 
-            ${{ join(matrix.package_version, '### OpenWRT ${{ matrix.package_version }}\n- [quectel-rm520n-thermal_1.0.0-r1_${{ matrix.package_version }}_all.ipk](artifacts/${{ matrix.package_version }}/quectel-rm520n-thermal_1.0.0-r1_${{ matrix.package_version }}_all.ipk)\n- [kmod-quectel-rm520n-thermal_${{ matrix.package_version }}.1.0.0-r1_all.ipk](artifacts/${{ matrix.package_version }}/kmod-quectel-rm520n-thermal_${{ matrix.package_version }}.1.0.0-r1_all.ipk)\n') }}
+            Diese ZIP-Datei enthält für jede OpenWRT Version einen Unterordner mit den erstellten IPK-Dateien.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
