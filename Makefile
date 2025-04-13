@@ -1,6 +1,7 @@
 # Main Makefile for building the Quectel RM520N Thermal Management package.
 
 include $(TOPDIR)/rules.mk
+include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME    := quectel-rm520n-thermal
 PKG_VERSION := 1.0.0
@@ -10,7 +11,6 @@ PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
-include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
 # --- Kernel package definition ---
@@ -23,6 +23,7 @@ define KernelPackage/quectel-rm520n-thermal
     $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor_hwmon.ko
   AUTOLOAD:=$(call AutoLoad,50,quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon)
   DEPENDS:=+libuci +libsysfs +kmod-hwmon-core
+  PKGARCH:=all
 endef
 
 define KernelPackage/quectel-rm520n-thermal/description
@@ -58,7 +59,8 @@ define Build/Prepare
   # Compile the Device Tree Overlay.
 	$(LINUX_DIR)/scripts/dtc/dtc -I dts -O dtb -@ -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo ./files/dts/quectel_rm520n_temp_sensor_overlay.dts
 endef
-
+		
+		CROSS_COMPILE="$(TARGET_CROSS)" \
 # --- Build/Compile ---
 define Build/Compile
   # 1) Kernel modules via Kbuild
@@ -67,7 +69,9 @@ define Build/Compile
 		              -DPKG_TAG=\\\"$(PKG_VERSION)-r$(PKG_RELEASE)\\\" \
 		              -DPKG_MAINTAINER=\\\"$(PKG_MAINTAINER)\\\" \
 		              -DPKG_LICENSE=\\\"$(PKG_LICENSE)\\\" \
-		              -DPKG_COPYRIGHT_YEAR=\\\"$(PKG_COPYRIGHT_YEAR)\\\""
+		              -DPKG_COPYRIGHT_YEAR=\\\"$(PKG_COPYRIGHT_YEAR)\\\"" \
+		ARCH="$(LINUX_KARCH)" \
+		CROSS_COMPILE="$(TARGET_CROSS)"
 
   # 2) Userspace program
 	$(TARGET_CC) -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_daemon \
