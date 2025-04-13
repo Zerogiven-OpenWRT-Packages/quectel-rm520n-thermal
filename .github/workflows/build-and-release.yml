@@ -15,8 +15,8 @@ jobs:
     steps:
       - id: set
         run: |
-          # Hier definieren wir zentral, welche OpenWRT-Versionen gebaut werden sollen.
-          echo "::set-output name=versions::$(echo '["24.10.0"]')"
+          # Definiert zentral, welche OpenWRT-Versionen gebaut werden sollen.
+          echo "versions=[\"23.05\",\"24.10\"]" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build OpenWRT IPK
