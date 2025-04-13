@@ -43,7 +43,7 @@ remove_overlay() {
 start_service() {
     load_overlay
     procd_open_instance
-    procd_set_param command /usr/bin/quectel_rm520n_temp_daemon
+    procd_set_param command /usr/bin/quectel_rm520n_temp_daemon --daemon
     procd_set_param respawn 5 5 0
     procd_close_instance
 }

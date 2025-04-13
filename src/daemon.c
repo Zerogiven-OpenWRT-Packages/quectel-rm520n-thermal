@@ -33,17 +33,16 @@ char serial_port[64] = "/dev/ttyUSB2"; // Default serial port
 int interval = 10;                     // Default polling interval in seconds
 speed_t baud_rate = B115200;           // Default baud rate
 char error_value[64] = "N/A";
-int foreground = 0;
+int foreground = 1;
 
 /* Main function */
 int main(int argc, char *argv[])
 {
     int pid_fd = -1;
 
-    if (!(argc > 1 && strcmp(argv[1], "--foreground") == 0))
-    {   
-        // Check if the daemon is running in the foreground
-        foreground = 1;
+    if (!(argc > 1 && strcmp(argv[1], "--daemon") == 0))
+    {
+        foreground = 0;
     }
 
     openlog("quectel_rm520n_temp_daemon", LOG_PID | LOG_CONS, LOG_DAEMON);
@@ -56,8 +55,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Run in the foreground if "--foreground" is passed as an argument
-    if (!(argc > 1 && strcmp(argv[1], "--foreground") == 0))
+    if (foreground == 1)
     {
         pid_fd = create_pid_file(PID_FILE);
         
