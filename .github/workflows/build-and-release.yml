@@ -1,9 +1,5 @@
 name: Build and Release OpenWRT IPK
 
-env:
-  # Zentrales Setzen der OpenWRT-Versionen (als JSON-Array)
-  OPENWRT_VERSIONS: '["23.05", "24.10"]'
-
 on:
   push:
     tags:
@@ -11,13 +7,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  set-versions:
+    name: Set OpenWRT Versions
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.set.outputs.versions }}
+    steps:
+      - id: set
+        run: |
+          # Hier definieren wir zentral, welche OpenWRT-Versionen gebaut werden sollen.
+          echo "::set-output name=versions::$(echo '["23.05","24.10"]')"
+
   build:
     name: Build OpenWRT IPK
+    needs: set-versions
     runs-on: ubuntu-latest
     strategy:
-      # Nutzt das zentrale JSON-Array für die Matrix
       matrix:
-        openwrt_version: ${{ fromJson(env.OPENWRT_VERSIONS) }}
+        openwrt_version: ${{ fromJson(needs.set-versions.outputs.versions) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -25,7 +32,7 @@ jobs:
       - name: Set up OpenWRT SDK
         uses: openwrt/gh-action-sdk@main
         env:
-          # Hier wird die Version dynamisch in ARCH eingebunden
+          # Dynamische Verwendung der jeweiligen OpenWRT-Version im ARCH-Parameter
           ARCH: "x86_64-${{ matrix.openwrt_version }}"
 
       - name: Build IPK package
@@ -34,9 +41,9 @@ jobs:
 
       - name: Collect IPK packages
         run: |
-          # Lege einen Unterordner für die jeweilige OpenWRT-Version an
+          # Erstellen eines Unterordners für die jeweilige OpenWRT-Version
           mkdir -p artifacts/${{ matrix.openwrt_version }}
-          # Kopiere alle erstellten IPK-Dateien in den Versions-Unterordner
+          # Kopiere alle erstellten IPK-Dateien in den entsprechenden Unterordner
           cp -v bin/packages/x86_64_${{ matrix.openwrt_version }}/packages/*.ipk artifacts/${{ matrix.openwrt_version }}/
 
       - name: Upload Build Artifact
@@ -50,16 +57,14 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    env:
-      OPENWRT_VERSIONS: ${{ env.OPENWRT_VERSIONS }}
     steps:
       - name: Download Build Artifacts
         uses: actions/download-artifact@v3
 
       - name: Organize Artifacts
         run: |
-          # Konvertiere das JSON-Array in eine whitespace-separierte Liste
-          VERSIONS=$(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' "${{ env.OPENWRT_VERSIONS }}")
+          # Hole die zentral definierten Versionen aus dem Output des set-versions Jobs
+          VERSIONS=$(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' '${{ needs.set-versions.outputs.versions }}')
           mkdir -p artifacts_all
           for version in $VERSIONS; do
             if [ -d "ipk-${version}" ]; then
@@ -67,14 +72,13 @@ jobs:
               mkdir -p artifacts_all/${version}
               cp -v ipk-${version}/* artifacts_all/${version}/
             else
-              echo "Artifact für Version $version nicht gefunden!"
+              echo "Artifact for version $version not found!"
             fi
           done
 
       - name: Rename IPK files
         run: |
-          # Optional: Datei-Umbennenung zur besseren Unterscheidung der Version in den Dateinamen
-          for version in $(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' "${{ env.OPENWRT_VERSIONS }}"); do
+          for version in $(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])))' '${{ needs.set-versions.outputs.versions }}'); do
             # Beispiel: Umbenennung von Standard-Paketen
             for file in artifacts_all/${version}/quectel-rm520n-thermal_*_all.ipk; do
               if [ -f "$file" ]; then
@@ -100,6 +104,6 @@ jobs:
           body: |
             ## OpenWRT Packages
 
-            Diese ZIP-Datei enthält für jede OpenWRT Version einen Unterordner mit den erstellten IPK-Dateien.
+            Diese ZIP-Datei enthält für jede OpenWRT-Version einen Unterordner mit den erstellten IPK-Dateien.
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
