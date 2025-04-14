@@ -33,7 +33,7 @@ jobs:
         uses: openwrt/gh-action-sdk@main
         env:
           # Dynamische Verwendung der jeweiligen OpenWRT-Version im ARCH-Parameter
-          ARCH: "x86_64-${{ matrix.openwrt_version }}"
+          ARCH: "mips_24kc-${{ matrix.openwrt_version }}"
           V: "sc"
 
       - name: Build IPK package
