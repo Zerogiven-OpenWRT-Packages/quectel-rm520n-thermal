@@ -57,7 +57,7 @@ jobs:
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash /github/workspace/.github/workflows/build-openwrt-packages/commands.sh
+            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/commands.sh
 
       - name: Prepare Release Assets
         id: prep_assets
