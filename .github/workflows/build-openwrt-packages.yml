@@ -12,7 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        openwrt_version: [24.10.0, 23.05.0]
+        # openwrt_version: [24.10.0, 23.05.0]
+        openwrt_version: [24.10.0]
 
     steps:
       - name: Checkout

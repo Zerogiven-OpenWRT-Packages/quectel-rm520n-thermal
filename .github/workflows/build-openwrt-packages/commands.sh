@@ -27,9 +27,15 @@ make -j"$(nproc)" target/linux/compile
 make -j"$(nproc)" package/kernel/linux/compile
 make -j"$(nproc)" V=sc package/quectel-rm520n-thermal/compile
 
-# 7) Artefakte finden und in Version-Ordner kopieren
-KMOD_FILE=$(ls bin/targets/mediatek/filogic/packages/kmod-quectel-rm520n-thermal_*_"$GIT_TAG"_all.ipk)
-DAEMON_FILE=$(ls bin/packages/aarch64_cortex-a53/base/quectel-rm520n-thermal_"$GIT_TAG"_all.ipk)
+# 7) Artefakte finden
+KMOD_FILE=$(find bin -type f -name "kmod-quectel-rm520n-thermal_*_${GIT_TAG}_all.ipk" | head -n1)
+DAEMON_FILE=$(find bin -type f -name "quectel-rm520n-thermal_${GIT_TAG}_all.ipk" | head -n1)
+if [[ -z "$KMOD_FILE" || -z "$DAEMON_FILE" ]]; then
+  echo "Fehler: IPK-Dateien nicht gefunden!" >&2
+  exit 1
+fi
+
+# 8) Artefakte in Version-Ordner kopieren
 SHORT_VER="$(echo "$OPENWRT_VERSION" | awk -F. '{print $1 "." $2}')"
 mkdir -p /openwrt-bin/"$SHORT_VER"
 cp "$KMOD_FILE" /openwrt-bin/"$SHORT_VER"/
