@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - '*.*.*-r*'  # Reagiere auf Tags im Format X.Y.Z-rN
+  workflow_dispatch:
+
 
 jobs:
   build-and-release:
