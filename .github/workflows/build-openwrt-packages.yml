@@ -75,8 +75,8 @@ jobs:
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
             bash -c "\
-              git clone --branch v$OPENWRT_VERSION https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt && \
-              git clone --branch $GIT_TAG https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal"
+              git clone --branch v$${{ matrix.openwrt_version }} https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt && \
+              git clone --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal"
 
       - name: Prepare OpenWRT Build (cached)
         run: |
