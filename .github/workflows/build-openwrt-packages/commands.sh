@@ -26,7 +26,7 @@ make -j"$(nproc)" toolchain/install
 make -j"$(nproc)" target/linux/compile
 make -j"$(nproc)" package/kernel/linux/compile
 
-if [ $DEBUG_MAKE -eq 1 ]; then
+if [ "${DEBUG_MAKE:-0}" -eq 1 ]; then
   make -j"$(nproc)" V=sc package/quectel-rm520n-thermal/compile
 else
   make -j"$(nproc)" package/quectel-rm520n-thermal/compile
