@@ -82,24 +82,26 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
+            -v ${{ github.workspace }}:/github/workspace:ro \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/prepare.sh
+            bash /github/workspace/.github/workflows/build-openwrt-packages/prepare.sh
 
       - name: Build Package (not cached)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
             -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
+            -v ${{ github.workspace }}:/github/workspace:ro \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/finish.sh
+            bash /github/workspace/.github/workflows/build-openwrt-packages/finish.sh
 
       - name: Save OpenWRT build cache
         uses: actions/cache@v3
