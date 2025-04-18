@@ -53,15 +53,18 @@ jobs:
           cache-to: type=gha,mode=max
           tags: openwrt_build:${{ matrix.openwrt_version }}
 
-      - name: Prepare bin-Verzeichnis
-        run: mkdir -p ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}
-
+      - name: Ensure openwrt-cache directory exists
+        run: mkdir -p ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}
+      
       - name: Fix openwrt-cache permissions
         run: chmod -R a+rwX ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}
-
+      
+      - name: Ensure bin directory exists
+        run: mkdir -p ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}
+      
       - name: Fix bin directory permissions
         run: chmod -R a+rwX ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}
-
+      
       - name: Clone OpenWRT Repos (not cached)
         run: |
           docker run --rm \
