@@ -3,7 +3,7 @@ name: Build OpenWRT Packages and Release
 on:
   push:
     tags:
-      - '*.*.*-r*'  # Reagiere auf Tags im Format X.Y.Z-rN
+      - '*.*.*-r*'
   workflow_dispatch:
 
 jobs:
@@ -12,14 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Einmal hier anpassen, gilt für gesamten Workflow
         openwrt_version: [24.10.0, 23.05.0]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up QEMU (für Multi‑Arch)
+      - name: Set up QEMU (für Multi-Arch)
         uses: docker/setup-qemu-action@v2
         with:
           platforms: linux/amd64
@@ -41,9 +40,9 @@ jobs:
           context: .
           file: .github/workflows/build-openwrt-packages/Dockerfile
           platforms: linux/amd64
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          load: true                      # Lade das gebaute Image in den lokalen Docker-Daemon
           tags: openwrt_build:${{ matrix.openwrt_version }}
 
       - name: Prepare bin-Verzeichnis
@@ -51,7 +50,6 @@ jobs:
 
       - name: Build OpenWRT Packages
         run: |
-          SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
           docker run --rm \
             -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
@@ -59,26 +57,7 @@ jobs:
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail << 'EOF'
-              git clone --branch v$OPENWRT_VERSION https://git.openwrt.org/openwrt/openwrt.git
-              git clone --branch $GIT_TAG https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git openwrt/package/quectel-rm520n-thermal
-              cd openwrt
-              ./scripts/feeds update -a
-              ./scripts/feeds install -a
-              wget https://mirror-03.infra.openwrt.org/releases/$OPENWRT_VERSION/targets/mediatek/filogic/config.buildinfo -O .config
-              make defconfig
-              sed -i 's|^# CONFIG_PACKAGE_quectel-rm520n-thermal is not set$|CONFIG_PACKAGE_quectel-rm520n-thermal=m|' .config
-              make -j$(nproc) toolchain/install
-              make -j$(nproc) target/linux/compile
-              make -j$(nproc) package/kernel/linux/compile
-              make -j$(nproc) package/quectel-rm520n-thermal/compile
-              KMOD_FILE=$(ls bin/targets/mediatek/filogic/packages/kmod-quectel-rm520n-thermal_*_${GIT_TAG}_all.ipk)
-              DAEMON_FILE=$(ls bin/packages/aarch64_cortex-a53/base/quectel-rm520n-thermal_${GIT_TAG}_all.ipk)
-              # Erstelle und nutze Short-Version als Unterordner
-              mkdir -p /openwrt-bin/$SHORT_VER
-              cp "$KMOD_FILE" /openwrt-bin/$SHORT_VER/
-              cp "$DAEMON_FILE" /openwrt-bin/$SHORT_VER/
-            EOF
+            bash /github/workspace/.github/workflows/build-openwrt-packages/commands.sh
 
       - name: Prepare Release Assets
         id: prep_assets
