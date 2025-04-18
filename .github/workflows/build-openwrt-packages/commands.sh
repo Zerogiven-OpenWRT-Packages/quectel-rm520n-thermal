@@ -25,7 +25,7 @@ sed -i 's|^# CONFIG_PACKAGE_quectel-rm520n-thermal is not set$|CONFIG_PACKAGE_qu
 make -j"$(nproc)" toolchain/install
 make -j"$(nproc)" target/linux/compile
 make -j"$(nproc)" package/kernel/linux/compile
-make -j"$(nproc)" package/quectel-rm520n-thermal/compile
+make -j"$(nproc)" V=sc package/quectel-rm520n-thermal/compile
 
 # 7) Artefakte finden und in Version-Ordner kopieren
 KMOD_FILE=$(ls bin/targets/mediatek/filogic/packages/kmod-quectel-rm520n-thermal_*_"$GIT_TAG"_all.ipk)
