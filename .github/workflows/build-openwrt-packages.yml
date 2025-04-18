@@ -52,12 +52,13 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
+            -v ${{ github.workspace }}:/github/workspace:ro \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/commands.sh
+            bash /github/workspace/.github/workflows/build-openwrt-packages/commands.sh
 
       - name: Prepare Release Assets
         id: prep_assets
