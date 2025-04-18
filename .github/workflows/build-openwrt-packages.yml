@@ -12,12 +12,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # openwrt_version: [24.10.0, 23.05.0]
         openwrt_version: [24.10.0]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Restore OpenWRT build cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}
+          key: openwrt-${{ matrix.openwrt_version }}-build-cache
+          restore-keys: |
+            openwrt-${{ matrix.openwrt_version }}-build-cache
 
       - name: Set up QEMU (für Multi-Arch)
         uses: docker/setup-qemu-action@v2
@@ -100,7 +107,7 @@ jobs:
       - name: Prepare Release Assets
         id: prep_assets
         run: |
-          SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
+          SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "\." $2}')
           mkdir -p $SHORT_VER
           KMOD_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/kmod-quectel-rm520n-thermal*.ipk)
           DAEMON_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/quectel-rm520n-thermal*.ipk)
