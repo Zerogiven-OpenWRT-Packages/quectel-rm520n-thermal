@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+cd /home/user/openwrt
+
 # build-openwrt-packages-commands.sh
 # Wird im Container ausgeführt. ENV-Variablen OPENWRT_VERSION und GIT_TAG sind gesetzt.
 

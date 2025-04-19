@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+cd /home/user/openwrt
+
 if [ "${DEBUG_MAKE:-0}" -eq 1 ]; then
   make -j"$(nproc)" V=sc package/quectel-rm520n-thermal/compile
 else
