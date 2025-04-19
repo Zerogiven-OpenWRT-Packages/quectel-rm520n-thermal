@@ -11,7 +11,3 @@ wget "https://mirror-03.infra.openwrt.org/releases/$OPENWRT_VERSION/targets/medi
 make defconfig
 
 sed -i 's|^# CONFIG_PACKAGE_quectel-rm520n-thermal is not set$|CONFIG_PACKAGE_quectel-rm520n-thermal=m|' /home/user/openwrt/.config
-
-make -j"$(nproc)" toolchain/install
-make -j"$(nproc)" target/linux/compile
-make -j"$(nproc)" package/kernel/linux/compile

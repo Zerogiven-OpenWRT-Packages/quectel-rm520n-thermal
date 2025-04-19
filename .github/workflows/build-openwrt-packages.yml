@@ -21,12 +21,13 @@ jobs:
       - name: Restore OpenWRT build cache
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}
+          path: openwrt-cache/${{ matrix.openwrt_version }}
           key: openwrt-${{ matrix.openwrt_version }}-build-cache
           restore-keys: |
             openwrt-${{ matrix.openwrt_version }}-build-cache
 
-      - name: Set up QEMU (für Multi-Arch)
+      # Docker layer caching via build-push-action cache-from/cache-to
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
           platforms: linux/amd64
@@ -34,73 +35,78 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker Layers
-        uses: actions/cache@v3
-        with:
-          path: /home/runner/.cache/docker
-          key: ${{ runner.os }}-docker-${{ matrix.openwrt_version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-${{ matrix.openwrt_version }}-
-
       - name: Build Docker Image
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ${{ github.workspace }}/.github/workflows/build-openwrt-packages/Dockerfile
+          file: .github/workflows/build-openwrt-packages/Dockerfile
           platforms: linux/amd64
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: openwrt_build:${{ matrix.openwrt_version }}
 
-      - name: Ensure openwrt-cache directory exists
-        run: mkdir -p ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }} &&
-              chmod -R a+rwX ${{ github.workspace }}/openwrt-cache
-      
-      - name: Ensure bin directory exists
-        run: mkdir -p ${{ github.workspace }}/bin/${{ matrix.openwrt_version }} &&
-              chmod -R a+rwX ${{ github.workspace }}/bin
-      
-      - name: Clone OpenWRT Repos (not cached)
+      - name: Ensure cache & bin directories exist and fix permissions
+        run: |
+          mkdir -p ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }} && \
+          chmod -R a+rwX ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }} && \
+          mkdir -p ${{ github.workspace }}/bin/${{ matrix.openwrt_version }} && \
+          chmod -R a+rwX ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}
+
+      - name: Clone OpenWRT sources (cached)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
-            -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash -c "\
-              sudo chown -R user:user /home/user && \
-              git clone --branch v${{ matrix.openwrt_version }} https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt && \
-              git clone --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal"
+            bash -eo pipefail -c "sudo chown -R user:user /home/user/openwrt && \
+              if [ ! -d /home/user/openwrt/.git ]; then \
+                git clone --branch v$OPENWRT_VERSION https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt; \
+              fi"
 
-      - name: Prepare OpenWRT Build (cached)
+      - name: Clone package repo (not cached)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -v ${{ github.workspace }}:/github/workspace:ro \
-            -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash /github/workspace/.github/workflows/build-openwrt-packages/prepare.sh
+            bash -eo pipefail -c "rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
+              git clone --branch $GIT_TAG https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal"
 
-      # - name: Build Package (not cached)
+      - name: Prepare OpenWRT feeds & config (not cached)
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
+            -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
+            --platform linux/amd64 \
+            -u user \
+            openwrt_build:${{ matrix.openwrt_version }} \
+            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/prepare.sh
+
+      - name: Run OpenWRT full build (cached)
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
+            --platform linux/amd64 \
+            -u user \
+            openwrt_build:${{ matrix.openwrt_version }} \
+            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/prepare-make.sh
+
+      # - name: Build package and copy artifacts (not cached)
       #   run: |
       #     docker run --rm \
       #       -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
       #       -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
-      #       -v ${{ github.workspace }}:/github/workspace:ro \
       #       -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
       #       -e GIT_TAG=${{ github.ref_name }} \
       #       --platform linux/amd64 \
       #       -u user \
       #       openwrt_build:${{ matrix.openwrt_version }} \
-      #       bash -c "\
-      #         sudo chown -R user:user /openwrt-bin && \
-      #         /github/workspace/.github/workflows/build-openwrt-packages/finish.sh"
+      #       bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/finish.sh
 
       - name: Save OpenWRT build cache
         uses: actions/cache@v3
@@ -111,7 +117,7 @@ jobs:
       # - name: Prepare Release Assets
       #   id: prep_assets
       #   run: |
-      #     SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "\." $2}')
+      #     SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
       #     mkdir -p $SHORT_VER
       #     KMOD_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/kmod-quectel-rm520n-thermal*.ipk)
       #     DAEMON_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/quectel-rm520n-thermal*.ipk)
