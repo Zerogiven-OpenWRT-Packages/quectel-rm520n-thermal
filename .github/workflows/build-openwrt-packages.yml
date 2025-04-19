@@ -79,20 +79,22 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
+            -v ${{ github.workspace }}:/github/workspace:ro \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/prepare.sh
+            bash /github/workspace/.github/workflows/build-openwrt-packages/prepare.sh
 
       - name: Run OpenWRT full build (cached)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
+            -v ${{ github.workspace }}:/github/workspace:ro \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash ${{ github.workspace }}/.github/workflows/build-openwrt-packages/prepare-make.sh
+            bash /github/workspace/.github/workflows/build-openwrt-packages/prepare-make.sh
 
       # - name: Build package and copy artifacts (not cached)
       #   run: |
