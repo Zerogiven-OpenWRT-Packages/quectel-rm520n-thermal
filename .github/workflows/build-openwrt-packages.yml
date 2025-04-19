@@ -57,25 +57,23 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c "sudo chown -R user:user /home/user/openwrt && \
+            bash -eo pipefail -c 'sudo chown -R user:user /home/user/openwrt && \
               if [ ! -d /home/user/openwrt/.git ]; then \
-                git clone --branch v$OPENWRT_VERSION https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt; \
-              fi"
+                git clone --branch v${{ matrix.openwrt_version }} https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt; \
+              fi'
 
       - name: Clone package repo (not cached)
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c "rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
-              git clone --branch $GIT_TAG https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal"
+            bash -eo pipefail -c 'rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
+              git clone --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal'  
 
       - name: Prepare OpenWRT feeds & config (not cached)
         run: |
