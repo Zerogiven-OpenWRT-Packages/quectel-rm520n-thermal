@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+sudo chown -R user:user /home/user/openwrt
+sudo chown -R user:user /openwrt-bin
+
 cd /home/user/openwrt
 
 if [ "${DEBUG_MAKE:-0}" -eq 1 ]; then
@@ -9,10 +12,10 @@ else
   make -j"$(nproc)" package/quectel-rm520n-thermal/compile
 fi
 
-KMOD_FILE=$(find /home/user/openwrt/bin -type f -name "quectel-rm520n-thermal*.ipk" | grep kmod | head -n1)
-DAEMON_FILE=$(find /home/user/openwrt/bin -type f -name "quectel-rm520n-thermal*.ipk" | grep -v kmod | head -n1)
+KMOD_FILE=$(find /home/user/openwrt/bin/targets -type f -name "kmod-quectel-rm520n-thermal_*.ipk" | head -n1)
+DAEMON_FILE=$(find /home/user/openwrt/bin/packages -type f -name "quectel-rm520n-thermal_*.ipk" | head -n1)
 if [[ -z "$KMOD_FILE" || -z "$DAEMON_FILE" ]]; then
-  echo "Fehler: IPK-Dateien nicht gefunden! KMOD_FILE: $KMOD_FILE, DAEMON_FILE: $DAEMON_FILE"
+  echo "Fehler: IPK-Dateien nicht gefunden! KMOD_FILE: $KMOD_FILE, DAEMON_FILE: $DAEMON_FILE" 2>&1
   exit 1
 fi
 

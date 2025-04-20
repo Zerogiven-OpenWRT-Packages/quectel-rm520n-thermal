@@ -72,7 +72,8 @@ jobs:
             --platform linux/amd64 \
             -u user \
             openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
+            bash -eo pipefail -c 'sudo chown -R user:user /home/user/openwrt && \
+              rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
               git clone --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal'  
 
       - name: Prepare OpenWRT feeds & config (not cached)

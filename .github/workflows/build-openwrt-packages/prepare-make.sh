@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+sudo chown -R user:user /home/user/openwrt
+
 cd /home/user/openwrt
 
 make -j"$(nproc)" toolchain/install
