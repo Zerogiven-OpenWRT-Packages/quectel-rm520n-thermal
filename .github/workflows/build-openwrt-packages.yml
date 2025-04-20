@@ -133,8 +133,8 @@ jobs:
         run: |
           SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
           mkdir -p $SHORT_VER
-          KMOD_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/1*)
-          DAEMON_FILE=$(ls ${{ github.workspace }}/bin/$SHORT_VER/2*)
+          KMOD_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/1*)
+          DAEMON_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/2*)
           cp "$KMOD_FILE" $SHORT_VER/
           cp "$DAEMON_FILE" $SHORT_VER/
           echo "kmod_asset=$SHORT_VER/$(basename $KMOD_FILE)" >> $GITHUB_OUTPUT
