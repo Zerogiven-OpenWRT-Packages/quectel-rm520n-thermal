@@ -86,7 +86,6 @@ define Build/Compile
 		-DPKG_COPYRIGHT_YEAR=\"$(PKG_COPYRIGHT_YEAR)\" \
 		-I$(PKG_BUILD_DIR)/src \
 		-luci -lsysfs
-		-Wall -Wextra
 endef
 
 # --- Kernel install (kernel-specific package) ---
