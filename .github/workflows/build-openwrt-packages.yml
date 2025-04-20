@@ -132,13 +132,13 @@ jobs:
         id: prep_assets
         run: |
           SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
-          mkdir -p $SHORT_VER
+          mkdir -p ${{ github.workspace }}/bin/$SHORT_VER
           KMOD_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/1*)
           DAEMON_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/2*)
-          cp "$KMOD_FILE" $SHORT_VER/
-          cp "$DAEMON_FILE" $SHORT_VER/
-          echo "kmod_asset=$SHORT_VER/$(basename $KMOD_FILE)" >> $GITHUB_OUTPUT
-          echo "daemon_asset=$SHORT_VER/$(basename $DAEMON_FILE)" >> $GITHUB_OUTPUT
+          cp "$KMOD_FILE" ${{ github.workspace }}/bin/$SHORT_VER/
+          cp "$DAEMON_FILE" ${{ github.workspace }}/bin/$SHORT_VER/
+          echo "kmod_asset=${{ github.workspace }}/bin/$SHORT_VER/$(basename $KMOD_FILE)" >> $GITHUB_OUTPUT
+          echo "daemon_asset=${{ github.workspace }}/bin/$SHORT_VER/$(basename $DAEMON_FILE)" >> $GITHUB_OUTPUT
 
       # - name: Prepare Release Assets
       #   id: prep_assets
@@ -152,34 +152,34 @@ jobs:
       #     echo "kmod_asset=$SHORT_VER/$(basename $KMOD_FILE)" >> $GITHUB_OUTPUT
       #     echo "daemon_asset=$SHORT_VER/$(basename $DAEMON_FILE)" >> $GITHUB_OUTPUT
 
-      # - name: Create GitHub Release
-      #   id: create_release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-      #   with:
-      #     tag_name: ${{ github.ref_name }}
-      #     release_name: ${{ github.ref_name }}
-      #     body: ''
-      #     draft: true
-      #     prerelease: false
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          body: ''
+          draft: true
+          prerelease: false
 
-      # - name: Upload Kernel-Module Package
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ${{ steps.prep_assets.outputs.kmod_asset }}
-      #     asset_name: ${{ steps.prep_assets.outputs.kmod_asset }}
-      #     asset_content_type: application/octet-stream
+      - name: Upload Kernel-Module Package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.prep_assets.outputs.kmod_asset }}
+          asset_name: ${{ steps.prep_assets.outputs.kmod_asset }}
+          asset_content_type: application/octet-stream
 
-      # - name: Upload Daemon Package
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ${{ steps.prep_assets.outputs.daemon_asset }}
-      #     asset_name: ${{ steps.prep_assets.outputs.daemon_asset }}
-      #     asset_content_type: application/octet-stream
+      - name: Upload Daemon Package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.prep_assets.outputs.daemon_asset }}
+          asset_name: ${{ steps.prep_assets.outputs.daemon_asset }}
+          asset_content_type: application/octet-stream
