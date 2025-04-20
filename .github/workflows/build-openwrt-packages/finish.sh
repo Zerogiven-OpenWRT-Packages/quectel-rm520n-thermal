@@ -12,7 +12,7 @@ fi
 KMOD_FILE=$(find /home/user/openwrt/bin -type f -name "quectel-rm520n-thermal*.ipk" | grep kmod | head -n1)
 DAEMON_FILE=$(find /home/user/openwrt/bin -type f -name "quectel-rm520n-thermal*.ipk" | grep -v kmod | head -n1)
 if [[ -z "$KMOD_FILE" || -z "$DAEMON_FILE" ]]; then
-  echo "Fehler: IPK-Dateien nicht gefunden!" >&2
+  echo "Fehler: IPK-Dateien nicht gefunden! KMOD_FILE: $KMOD_FILE, DAEMON_FILE: $DAEMON_FILE"
   exit 1
 fi
 

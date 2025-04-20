@@ -103,6 +103,7 @@ jobs:
             -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
             -v ${{ github.workspace }}:/github/workspace:ro \
             -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
+            -e DEBUG_MAKE=1 \
             -e GIT_TAG=${{ github.ref_name }} \
             --platform linux/amd64 \
             -u user \
