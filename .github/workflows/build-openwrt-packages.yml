@@ -175,4 +175,4 @@ jobs:
             ${{ steps.prep_assets.outputs.kmod_asset }}
             ${{ steps.prep_assets.outputs.daemon_asset }}
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.OWRT_PACKAGE_RELEASE_TOKEN }}
