@@ -164,32 +164,15 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        uses: softprops/action-gh-release@v2
+        # if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body: ''
           draft: true
           prerelease: false
-
-      - name: Upload Kernel-Module Package
-        uses: actions/upload-release-asset@v1
+          files: |
+            ${{ steps.prep_assets.outputs.kmod_asset }}
+            ${{ steps.prep_assets.outputs.daemon_asset }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.prep_assets.outputs.kmod_asset }}
-          asset_name: ${{ steps.prep_assets.outputs.kmod_asset }}
-          asset_content_type: application/octet-stream
-
-      - name: Upload Daemon Package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.prep_assets.outputs.daemon_asset }}
-          asset_name: ${{ steps.prep_assets.outputs.daemon_asset }}
-          asset_content_type: application/octet-stream
