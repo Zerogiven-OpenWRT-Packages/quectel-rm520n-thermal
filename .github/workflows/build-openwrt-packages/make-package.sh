@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-sudo chown -R user:user /home/user/openwrt
-sudo chown -R user:user /openwrt-bin
-
 cd /home/user/openwrt
 
 if [ "${DEBUG_MAKE:-0}" -eq 1 ]; then

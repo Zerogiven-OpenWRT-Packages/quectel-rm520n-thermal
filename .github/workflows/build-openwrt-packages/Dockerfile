@@ -9,9 +9,11 @@ RUN apt-get update &&\
         libsnmp-dev liblzma-dev libpam0g-dev cpio rsync gcc-multilib qemu-utils \
         build-essential clang flex bison g++ gawk \
         gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
-        python3-setuptools rsync swig unzip zlib1g-dev file wget && \
+        python3-setuptools rsync swig unzip zlib1g-dev file wget passwd && \
     apt-get clean && \
     useradd -m user && \
+    groupadd -r buildgroup && \
+    usermod -aG buildgroup user && \
     echo 'user ALL=NOPASSWD: ALL' > /etc/sudoers.d/user
 
 # set system wide dummy git config
