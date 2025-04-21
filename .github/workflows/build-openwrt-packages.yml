@@ -131,14 +131,24 @@ jobs:
       - name: Prepare Release Assets
         id: prep_assets
         run: |
-          SHORT_VER=$(echo ${{ matrix.openwrt_version }} | awk -F. '{print $1 "." $2}')
-          mkdir -p ${{ github.workspace }}/bin/$SHORT_VER
-          KMOD_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/1*)
-          DAEMON_FILE=$(ls ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/2*)
-          cp "$KMOD_FILE" ${{ github.workspace }}/bin/$SHORT_VER/
-          cp "$DAEMON_FILE" ${{ github.workspace }}/bin/$SHORT_VER/
-          echo "kmod_asset=${{ github.workspace }}/bin/$SHORT_VER/$(basename $KMOD_FILE)" >> $GITHUB_OUTPUT
-          echo "daemon_asset=${{ github.workspace }}/bin/$SHORT_VER/$(basename $DAEMON_FILE)" >> $GITHUB_OUTPUT
+          SHORT_VER=$(echo "${{ matrix.openwrt_version }}" | awk -F. '{print $1 "." $2}')
+          
+          TARGET_DIR="${{ github.workspace }}/bin/${SHORT_VER}"
+          mkdir -p "${TARGET_DIR}"
+          
+          KMOD_FILES=( "${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/1"* )
+          DAEMON_FILES=( "${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/2"* )
+          
+          if [ -z "${KMOD_FILES[0]}" ] || [ -z "${DAEMON_FILES[0]}" ]; then
+            echo "Error: KMOD- oder DAEMON-Datei nicht gefunden" >&2
+            exit 1
+          fi
+          
+          cp -- "${KMOD_FILES[0]}" "${TARGET_DIR}/"
+          cp -- "${DAEMON_FILES[0]}" "${TARGET_DIR}/"
+          
+          echo "kmod_asset=${TARGET_DIR}/$(basename "${KMOD_FILES[0]}")" >> "$GITHUB_OUTPUT"
+          echo "daemon_asset=${TARGET_DIR}/$(basename "${DAEMON_FILES[0]}")" >> "$GITHUB_OUTPUT"
 
       # - name: Prepare Release Assets
       #   id: prep_assets
