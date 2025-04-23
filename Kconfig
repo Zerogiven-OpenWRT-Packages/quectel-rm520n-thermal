@@ -2,7 +2,7 @@ menu "Utilities"
 
 config PACKAGE_KMOD_QUETCEL_RM520N_THERMAL
     tristate "Quectel RM520N Thermal Management Kernel Modules"
-    depends on PACKAGE_kmod-hwmon-core
+    depends on KMOD_HWMON_CORE
     help
       Kernel modules for monitoring and managing the Quectel RM520N modem temperature.
       Provides:
@@ -12,13 +12,13 @@ config PACKAGE_KMOD_QUETCEL_RM520N_THERMAL
 
 config PACKAGE_QUETCEL_RM520N_THERMAL
     bool "Quectel RM520N Thermal Management Tools"
-    depends on PACKAGE_kmod-quectel-rm520n-thermal
+    depends on PACKAGE_KMOD_QUETCEL_RM520N_THERMAL +LIBUCI +LIBSYSFS
     help
       Userspace tools and configuration for the Quectel RM520N thermal stack.
       Includes:
         - AT-based temperature polling daemon (quectel_rm520n_temp_daemon)
-        - UCI config integration (/etc/config/quectel_rm520n_temp)
-        - Device-tree overlay for virtual sensor (.dtbo)
-        - /etc/init.d script to start/stop the daemon
+        - UCI-Konfiguration (/etc/config/quectel_rm520n_temp)
+        - Device-Tree Overlay für den virtuellen Sensor (.dtbo)
+        - init.d-Skript zum Starten/Stoppen des Daemons
 
 endmenu
