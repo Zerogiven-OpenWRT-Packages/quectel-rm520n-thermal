@@ -38,7 +38,7 @@ define Package/quectel-rm520n-thermal
   TITLE:=Quectel RM520N Thermal Management Tools
   URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
   MAINTAINER:=$(PKG_MAINTAINER)
-  DEPENDS:=+kmod-quectel-rm520n-thermal
+  DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs
   PKGARCH:=all
 endef
 
