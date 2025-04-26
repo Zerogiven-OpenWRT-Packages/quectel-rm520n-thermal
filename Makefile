@@ -12,7 +12,7 @@ PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
 # PKG_BUILD_DEPENDS := dtc
-PKG_BUILD_DEPENDS := libuci libsysfs
+PKG_BUILD_DEPENDS := uci sysfsutils
 
 include $(INCLUDE_DIR)/package.mk
 
