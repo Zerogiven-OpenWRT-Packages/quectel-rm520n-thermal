@@ -11,6 +11,8 @@ PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
+PKG_BUILD_DEPENDS := dtc
+
 include $(INCLUDE_DIR)/package.mk
 
 # --- Kernel package definition ---
@@ -56,8 +58,8 @@ define Build/Prepare
 
 	$(CP) ./src/* $(PKG_BUILD_DIR)/
 	
-  # Compile the Device Tree Overlay.
-	$(LINUX_DIR)/scripts/dtc/dtc -I dts -O dtb -@ -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo ./files/dts/quectel_rm520n_temp_sensor_overlay.dts
+	# Compile the Device Tree Overlay.
+	dtc -I dts -O dtb -@ -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo ./files/dts/quectel_rm520n_temp_sensor_overlay.dts
 endef
 		
 		CROSS_COMPILE="$(TARGET_CROSS)" \
