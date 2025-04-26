@@ -11,7 +11,7 @@ PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
-PKG_BUILD_DEPENDS := dtc
+# PKG_BUILD_DEPENDS := dtc
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -58,8 +58,8 @@ define Build/Prepare
 
 	$(CP) ./src/* $(PKG_BUILD_DIR)/
 	
-	# Compile the Device Tree Overlay.
-	dtc -I dts -O dtb -@ -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo ./files/dts/quectel_rm520n_temp_sensor_overlay.dts
+	# # Compile the Device Tree Overlay.
+	# dtc -I dts -O dtb -@ -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo ./files/dts/quectel_rm520n_temp_sensor_overlay.dts
 endef
 		
 		CROSS_COMPILE="$(TARGET_CROSS)" \
@@ -118,15 +118,15 @@ define Package/quectel-rm520n-thermal/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/quectel_rm520n_temp_daemon \
 	               $(1)/usr/bin/quectel_rm520n_temp_daemon
 
-	$(INSTALL_DIR) $(1)/lib/firmware
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo \
-                  $(1)/lib/firmware/quectel_rm520n_temp_sensor.dtbo
+	# $(INSTALL_DIR) $(1)/lib/firmware
+	# $(INSTALL_DATA) $(PKG_BUILD_DIR)/quectel_rm520n_temp_sensor.dtbo \
+    #               $(1)/lib/firmware/quectel_rm520n_temp_sensor.dtbo
 endef
 
 define Package/quectel-rm520n-thermal/postinst
 #!/bin/sh
-mkdir -p /lib/firmware/quectel_rm520n
-mv /lib/firmware/quectel_rm520n_temp_sensor.dtbo /lib/firmware/quectel_rm520n/quectel_rm520n_temp_sensor.dtbo
+# mkdir -p /lib/firmware/quectel_rm520n
+# mv /lib/firmware/quectel_rm520n_temp_sensor.dtbo /lib/firmware/quectel_rm520n/quectel_rm520n_temp_sensor.dtbo
 
 /etc/init.d/quectel_rm520n_thermal enable
 /etc/init.d/quectel_rm520n_thermal start
