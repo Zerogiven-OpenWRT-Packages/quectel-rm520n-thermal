@@ -18,150 +18,60 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Restore OpenWRT build cache
+      - name: Restore SDK download cache
         uses: actions/cache@v3
         with:
-          path: openwrt-cache/${{ matrix.openwrt_version }}
-          key: openwrt-${{ matrix.openwrt_version }}-build-cache
+          path: sdk-cache/${{ matrix.openwrt_version }}
+          key: sdk-${{ matrix.openwrt_version }}-cache
           restore-keys: |
-            openwrt-${{ matrix.openwrt_version }}-build-cache
+            sdk-${{ matrix.openwrt_version }}-cache
 
-      # Docker layer caching via build-push-action cache-from/cache-to
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: linux/amd64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker Image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: .github/workflows/build-openwrt-packages/Dockerfile
-          platforms: linux/amd64
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: openwrt_build:${{ matrix.openwrt_version }}
-
-      - name: Ensure cache & bin directories exist and fix permissions
+      - name: Ensure bin & cache directories and permissions
         run: |
-          mkdir -p ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }} && \
-          chmod -R a+rwX ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }} && \
+          mkdir -p ${{ github.workspace }}/sdk-cache/${{ matrix.openwrt_version }} && \
+          chmod -R a+rwX ${{ github.workspace }}/sdk-cache/${{ matrix.openwrt_version }} && \
           mkdir -p ${{ github.workspace }}/bin/${{ matrix.openwrt_version }} && \
           chmod -R a+rwX ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}
 
-      - name: Fix Docker mount permissions
+      - name: Build package via OpenWRT SDK
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
+            -v ${{ github.workspace }}/sdk-cache/${{ matrix.openwrt_version }}:/downloads \
+            -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/builder/bin \
             --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'sudo chown -R :buildgroup /home/user && \
-              sudo chown -R :buildgroup /openwrt-bin && \
-              sudo chmod 775 -R /home/user && \
-              sudo chmod 775 -R /openwrt-bin'
-
-      - name: Clone OpenWRT sources (cached)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'if [ ! -d /home/user/openwrt/.git ]; then \
-                git clone --branch v${{ matrix.openwrt_version }} https://git.openwrt.org/openwrt/openwrt.git /home/user/openwrt; \
-              fi'
-
-      - name: Clone package repo (not cached)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'rm -rf /home/user/openwrt/package/quectel-rm520n-thermal && \
-              git clone --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git /home/user/openwrt/package/quectel-rm520n-thermal'  
-
-      - name: Prepare OpenWRT feeds & config (not cached)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -v ${{ github.workspace }}:/github/workspace:ro \
-            -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
-            --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'cd /home/user/openwrt && \
+            openwrt/sdk:x86-64-${{ matrix.openwrt_version }} \
+            bash -eo pipefail -c '
+              if [ -f ./setup.sh ]; then ./setup.sh; fi && \
+              git clone --depth 1 --branch ${{ github.ref_name }} https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git package/quectel-rm520n-thermal && \
               ./scripts/feeds update -a && \
-              ./scripts/feeds install -a && \
-              wget "https://mirror-03.infra.openwrt.org/releases/${{ matrix.openwrt_version }}/targets/mediatek/filogic/config.buildinfo" -O /home/user/openwrt/.config && \
+              ./scripts/feeds install libuci libsysfs quectel-rm520n-thermal && \
               make defconfig && \
-              sed -i "s|^# CONFIG_PACKAGE_quectel-rm520n-thermal is not set$|CONFIG_PACKAGE_quectel-rm520n-thermal=m|" /home/user/openwrt/.config'
+              make package/quectel-rm520n-thermal/download && \
+              make package/quectel-rm520n-thermal/prepare && \
+              make -j$(nproc) package/quectel-rm520n-thermal/compile'
 
-      - name: Run OpenWRT full build (cached)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -v ${{ github.workspace }}:/github/workspace:ro \
-            --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash -eo pipefail -c 'cd /home/user/openwrt && \
-              make -j"\$(nproc)" toolchain/install && \
-              make -j"\$(nproc)" target/linux/compile && \
-              make -j"\$(nproc)" package/kernel/linux/compile'
-
-      - name: Build package and copy artifacts (not cached)
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/openwrt-cache/${{ matrix.openwrt_version }}:/home/user/openwrt \
-            -v ${{ github.workspace }}/bin/${{ matrix.openwrt_version }}:/openwrt-bin \
-            -v ${{ github.workspace }}:/github/workspace:ro \
-            -e OPENWRT_VERSION=${{ matrix.openwrt_version }} \
-            -e DEBUG_MAKE=1 \
-            -e GIT_TAG=${{ github.ref_name }} \
-            --platform linux/amd64 \
-            -u user \
-            openwrt_build:${{ matrix.openwrt_version }} \
-            bash /github/workspace/.github/workflows/build-openwrt-packages/make-package.sh
-
-      - name: Save OpenWRT build cache
+      - name: Save SDK download cache
         uses: actions/cache@v3
         with:
-          path: openwrt-cache/${{ matrix.openwrt_version }}
-          key: openwrt-${{ matrix.openwrt_version }}-build-cache
+          path: sdk-cache/${{ matrix.openwrt_version }}
+          key: sdk-${{ matrix.openwrt_version }}-cache
 
       - name: Prepare Release Assets
         id: prep_assets
         run: |
-          SHORT_VER=$(echo "${{ matrix.openwrt_version }}" | awk -F. '{print $1 "." $2}')
-          
+          SHORT_VER=$(echo "${{ matrix.openwrt_version }}" | awk -F. '{print $1"."$2}')
           TARGET_DIR="${{ github.workspace }}/bin/${SHORT_VER}"
-          mkdir -p "${TARGET_DIR}"
-          
-          KMOD_FILES=( "${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/kmod-quectel-rm520n-thermal"* )
-          DAEMON_FILES=( "${{ github.workspace }}/bin/${{ matrix.openwrt_version }}/quectel-rm520n-thermal"* )
-          
-          if [ -z "${KMOD_FILES[0]}" ] || [ -z "${DAEMON_FILES[0]}" ]; then
-            echo "Error: KMOD- oder DAEMON-Datei nicht gefunden" >&2
-            exit 1
-          fi
-          
-          cp -- "${KMOD_FILES[0]}" "${TARGET_DIR}/"
-          cp -- "${DAEMON_FILES[0]}" "${TARGET_DIR}/"
-          
-          echo "kmod_asset=${TARGET_DIR}/$(basename "${KMOD_FILES[0]}")" >> "$GITHUB_OUTPUT"
-          echo "daemon_asset=${TARGET_DIR}/$(basename "${DAEMON_FILES[0]}")" >> "$GITHUB_OUTPUT"
+          mkdir -p "$TARGET_DIR"
+          KMOD_IPK=$(find ${{ github.workspace }}/bin/${{ matrix.openwrt_version }} -name "kmod-quectel-rm520n-thermal*_all.ipk" | head -n1)
+          DAEMON_IPK=$(find ${{ github.workspace }}/bin/${{ matrix.openwrt_version }} -name "quectel-rm520n-thermal*_all.ipk" | head -n1)
+          if [[ -z "$KMOD_IPK" || -z "$DAEMON_IPK" ]]; then echo "IPK files not found" >&2; exit 1; fi
+          cp "$KMOD_IPK" "$TARGET_DIR/" && cp "$DAEMON_IPK" "$TARGET_DIR/"
+          echo "kmod_asset=$TARGET_DIR/$(basename "$KMOD_IPK")" >> "$GITHUB_OUTPUT"
+          echo "daemon_asset=$TARGET_DIR/$(basename "$DAEMON_IPK")" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
-        # if: startsWith(github.ref, 'refs/tags/')
         with:
           name: ${{ github.ref_name }}
           body: ''
