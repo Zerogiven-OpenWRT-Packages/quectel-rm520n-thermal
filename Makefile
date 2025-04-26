@@ -12,6 +12,7 @@ PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
 # PKG_BUILD_DEPENDS := dtc
+PKG_BUILD_DEPENDS := libuci libsysfs
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -76,7 +77,7 @@ define Build/Compile
 		CROSS_COMPILE="$(TARGET_CROSS)"
 
   # 2) Userspace program
-	$(TARGET_CC) -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_daemon \
+	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/quectel_rm520n_temp_daemon \
 		$(PKG_BUILD_DIR)/daemon.c \
 		$(PKG_BUILD_DIR)/daemon_tty.c \
 		$(PKG_BUILD_DIR)/daemon_sensor.c \
@@ -87,7 +88,7 @@ define Build/Compile
 		-DPKG_LICENSE=\"$(PKG_LICENSE)\" \
 		-DPKG_COPYRIGHT_YEAR=\"$(PKG_COPYRIGHT_YEAR)\" \
 		-I$(PKG_BUILD_DIR)/src \
-		-luci -lsysfs
+		$(TARGET_LDFLAGS) -luci -lsysfs
 endef
 
 # --- Kernel install (kernel-specific package) ---
