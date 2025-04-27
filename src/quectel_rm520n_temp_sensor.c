@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/version.h>
 
 #ifndef PKG_NAME
 #define PKG_NAME "-"
@@ -39,6 +40,15 @@
 #endif
 #ifndef PKG_COPYRIGHT_YEAR
 #define PKG_COPYRIGHT_YEAR "2025"
+#endif
+
+/* 
+ * The THERMAL_EVENT_UNSPECIFIED enum was introduced in kernel 5.17
+ * For earlier kernels, we define it here to ensure compatibility
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
+/* Use 0 as a safe default value for older kernels */
+#define THERMAL_EVENT_UNSPECIFIED 0
 #endif
 
 /* Data structure to store the current temperature (in m°C) */
@@ -78,7 +88,9 @@ static ssize_t cur_temp_store(struct device *dev, struct device_attribute *attr,
     if (kstrtoint(buf, 10, &val) == 0) { // Parse the input value
         data->cur_temp = val; // Update the current temperature
         dev_info(dev, "[QuectelTemp] cur_temp updated to %d m°C\n", val);
-        thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED); // Notify the thermal framework
+        
+        /* Notify the thermal framework with appropriate backward compatibility */
+        thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED);
     }
 
     return count;
@@ -112,13 +124,23 @@ static int quectel_temp_probe(struct platform_device *pdev)
     }
 
     // Register the thermal zone with the thermal framework
+    // Using proper conditional compilation based on kernel version
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+    // Use devm_thermal_of_zone_register for kernel 5.15+
     data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
+#else
+    // Fallback to the traditional registration method for older kernels
+    data->tzd = devm_thermal_zone_device_register(&pdev->dev, "quectel_rm520n", 
+                                                0, data, &quectel_temp_ops, 
+                                                NULL, 0, 0);
+#endif
+
     if (IS_ERR(data->tzd)) {
         ret = PTR_ERR(data->tzd);
-        dev_err(&pdev->dev, "Failed to register thermal zone via DT, error %d\n", ret);
+        dev_err(&pdev->dev, "Failed to register thermal zone, error %d\n", ret);
         return ret;
     }
-    dev_info(&pdev->dev, "Thermal zone registered via DT at %p\n", data->tzd);
+    dev_info(&pdev->dev, "Thermal zone registered at %p\n", data->tzd);
 
     // Store the sensor data in the platform device
     platform_set_drvdata(pdev, data);

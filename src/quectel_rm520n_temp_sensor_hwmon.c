@@ -22,6 +22,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/version.h>
 
 #ifndef PKG_NAME
 #define PKG_NAME "-"
@@ -143,11 +144,13 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
 
     platform_set_drvdata(pdev, data);
 
-    // Register the hwmon device
+    // The hwmon_device_register_with_groups API has been stable since kernel 3.13
+    // so we don't need conditional compilation for basic registration
     hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
-                                                       "quectel_rm520n",
-                                                       data,
-                                                       quectel_hwmon_groups);
+                                                     "quectel_rm520n",
+                                                     data,
+                                                     quectel_hwmon_groups);
+    
     if (IS_ERR(hwmon_dev)) {
         dev_err(&pdev->dev, "Failed to register hwmon device\n");
         return PTR_ERR(hwmon_dev);

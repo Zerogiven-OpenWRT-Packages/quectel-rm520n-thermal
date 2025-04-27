@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
+#include <linux/version.h>
 
 // Package metadata definitions
 #ifndef PKG_NAME
@@ -34,6 +35,11 @@
 #endif
 #ifndef PKG_COPYRIGHT_YEAR
 #define PKG_COPYRIGHT_YEAR "2025"
+#endif
+
+/* Compatibility defines for kernel version differences */
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
 // Replace magic numbers with named constants
