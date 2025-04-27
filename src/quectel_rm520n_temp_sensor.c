@@ -47,7 +47,7 @@
  * For earlier kernels, we define it here to ensure compatibility
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
-/* Use 0 as a safe default value for older kernels */
+/* Use 0 as a safe default value for older kernels (OpenWRT 23.05 compatibility) */
 #define THERMAL_EVENT_UNSPECIFIED 0
 #endif
 
@@ -125,7 +125,10 @@ static int quectel_temp_probe(struct platform_device *pdev)
 
     // Register the thermal zone with the thermal framework
     // Using proper conditional compilation based on kernel version
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,0)
+    // For OpenWRT with kernel 6.6 (and future versions)
+    data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
     // Use devm_thermal_of_zone_register for kernel 5.15+
     data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
 #else
@@ -199,4 +202,4 @@ module_exit(quectel_temp_exit);
 MODULE_AUTHOR(PKG_MAINTAINER);
 MODULE_DESCRIPTION(PKG_NAME " Virtual Thermal Sensor with DT-only registration");
 MODULE_LICENSE(PKG_LICENSE);
-MODULE_VERSION(PKG_VERSION);
+MODULE_VERSION(PKG_TAG);

@@ -51,6 +51,9 @@ static struct {
 int main(int argc, char *argv[])
 {
     int pid_fd = -1;
+    int serial_reconnect_attempts = 0;
+    const int max_reconnect_attempts = 5;
+    int reconnect_delay = 10; // Initial delay in seconds
 
     if (!(argc > 1 && strcmp(argv[1], "--daemon") == 0))
     {
@@ -75,13 +78,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Initialize the serial port
-    int fd = init_serial_port(serial_port, baud_rate);
-    if (fd < 0)
-    {
-        return 1;
-    }
-
     read_uci_config();
 
     // Initialize the hwmon sensor
@@ -93,18 +89,61 @@ int main(int argc, char *argv[])
         hwmon_path[0] = '\0';
     }
 
+    // Initialize the serial port with recovery mechanism
+    int fd = -1;
+serial_init_retry:
+    fd = init_serial_port(serial_port, baud_rate);
+    if (fd < 0)
+    {
+        if (serial_reconnect_attempts < max_reconnect_attempts) {
+            serial_reconnect_attempts++;
+            do_log(LOG_WARNING, "Failed to initialize serial port, retry %d/%d in %d seconds", 
+                   serial_reconnect_attempts, max_reconnect_attempts, reconnect_delay);
+            sleep(reconnect_delay);
+            reconnect_delay *= 2; // Exponential backoff
+            if (reconnect_delay > 60) reconnect_delay = 60; // Cap at 60 seconds
+            goto serial_init_retry;
+        }
+        do_log(LOG_ERR, "Failed to initialize serial port after %d attempts, continuing with error reporting", 
+               max_reconnect_attempts);
+    } else {
+        do_log(LOG_INFO, "Serial port initialized successfully");
+        serial_reconnect_attempts = 0;
+        reconnect_delay = 10;
+    }
+
     // Main loop: Read temperature and write to outputs
     while (1)
     {
         char at_buf[1024];
 
+        // If serial port is invalid, try to reopen it
+        if (fd < 0) {
+            fd = init_serial_port(serial_port, baud_rate);
+            if (fd < 0) {
+                handle_at_error(error_value);
+                sleep(interval);
+                continue;
+            }
+            do_log(LOG_INFO, "Serial port reconnected successfully");
+        }
+
         if (send_at_command(fd, AT_COMMAND, at_buf, sizeof(at_buf)) > 0)
         {
             process_at_response(at_buf);
+            serial_reconnect_attempts = 0;
         }
         else
         {
             handle_at_error(error_value);
+            
+            // Handle serial port errors with reconnection logic
+            serial_reconnect_attempts++;
+            if (serial_reconnect_attempts > 3) {
+                do_log(LOG_WARNING, "Multiple AT command failures, trying to reopen serial port");
+                close(fd);
+                fd = -1;
+            }
         }
 
         sleep(interval);
@@ -333,4 +372,50 @@ void do_log(int err, const char *message, ...)
     va_start(args, message);
     vsyslog(err, message, args);
     va_end(args);
+}
+
+/* Processes the AT command response and extracts temperature values */
+void process_at_response(const char *response)
+{
+    int modem_temp = 0, ap_temp = 0, pa_temp = 0;
+    char temp_str[32];
+
+    // Extract the modem temperature from AT+QTEMP response
+    // Format is typically: +QTEMP: "modem",40,"ap",39,"pa",38
+    if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp)) {
+        // Convert to millidegrees for kernel thermal interfaces
+        int modem_temp_mdeg = modem_temp * 1000;
+        
+        // Format temperature as string
+        snprintf(temp_str, sizeof(temp_str), "%d", modem_temp_mdeg);
+        
+        // Check paths before writing
+        pthread_mutex_lock(&temp_mutex);
+        
+        // Retry logic - if a path becomes available again after being unavailable
+        for (int i = 0; i < MAX_PATHS; i++) {
+            if (path_status[i].checked && !path_status[i].available) {
+                // Periodically re-check unavailable paths
+                static int retry_counter = 0;
+                if (++retry_counter % 10 == 0) { // Check every ~10 intervals
+                    path_status[i].available = (access(path_status[i].path, W_OK) == 0);
+                    if (path_status[i].available) {
+                        do_log(LOG_INFO, "Path '%s' is now available", path_status[i].path);
+                    }
+                }
+            }
+        }
+        
+        pthread_mutex_unlock(&temp_mutex);
+        
+        // Write temperature to kernel interfaces
+        write_temp_to_hwmon_sensor(temp_str);
+        write_temp_to_thermal_sensor(temp_str);
+        
+        // Log current temperature values
+        do_log(LOG_INFO, "Modem temperature: %d°C, AP: %d°C, PA: %d°C", 
+               modem_temp, ap_temp, pa_temp);
+    } else {
+        // Handle invalid
+    }
 }

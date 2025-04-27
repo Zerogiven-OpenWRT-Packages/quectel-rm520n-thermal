@@ -1,6 +1,8 @@
 config quectel_rm520n_thermal 'settings'
-    option serial_port '/dev/ttyUSB3'       # Serial port for the modem
-    option interval '10'                   # Interval in seconds for temperature polling
-    option baud_rate '115200'              # Baud rate for serial communication
-    option temp_prefix 'modem-ambient-usr' # Prefix for temperature sensor names
-    option error_value 'N/A'               # Value to display in case of errors
+	option serial_port '/dev/ttyUSB3'
+	option interval '10'
+	option baud_rate '115200'
+	option temp_prefix 'modem-ambient-usr'
+	option error_value 'N/A'
+	option fallback_register '1'
+	option debug '0'

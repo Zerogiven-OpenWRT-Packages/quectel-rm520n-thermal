@@ -221,4 +221,4 @@ module_exit(quectel_hwmon_exit);
 MODULE_LICENSE(PKG_LICENSE);
 MODULE_AUTHOR(PKG_MAINTAINER);
 MODULE_DESCRIPTION(PKG_NAME " hwmon driver with fallback registration");
-MODULE_VERSION(PKG_VERSION);
+MODULE_VERSION(PKG_TAG);

@@ -19,39 +19,70 @@
 #include <errno.h>
 #include "daemon.h"
 
-/* Extracts the temperature value from the AT response and writes it to all output channels */
-void process_at_response(const char *response)
+/* Extracts temperature values from the AT+QTEMP response */
+int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int *pa_temp)
 {
-    const char *prefix = "modem-ambient-usr";
-    char *temp_ptr = strstr(response, prefix);
-
-    if (!temp_ptr)
-    {
-        // Handle missing temperature prefix in the response
-        write_temp_to_path(SYSFS_PATH, error_value);
-        write_temp_to_path(ALT_SENSOR_PATH, error_value);
-        write_temp_to_path(hwmon_path, error_value);
-
-        do_log(LOG_WARNING, "No temp_prefix in response; wrote '%s' to all outputs", error_value);
-        return;
+    const char *modem_prefix = "\"modem\"";
+    const char *ap_prefix = "\"ap\"";
+    const char *pa_prefix = "\"pa\"";
+    
+    // Initialize output values
+    if (modem_temp) *modem_temp = 0;
+    if (ap_temp) *ap_temp = 0;
+    if (pa_temp) *pa_temp = 0;
+    
+    // Validate response format
+    if (!response || !strstr(response, "+QTEMP:")) {
+        do_log(LOG_WARNING, "Invalid AT+QTEMP response format: missing +QTEMP prefix");
+        return 0;
     }
-
-    temp_ptr += strlen(prefix) + 3; // Skip prefix and ','"
-    char *end = strchr(temp_ptr, '"');
-    if (end)
-        *end = '\0';
-    int degC = atoi(temp_ptr);
-    int temp_milli = degC * 1000;
-    char temp_str[16];
-
-    snprintf(temp_str, sizeof(temp_str), "%d", temp_milli);
-
-    // Write the extracted temperature to all output channels
-    write_temp_to_path(SYSFS_PATH, temp_str);
-    write_temp_to_path(ALT_SENSOR_PATH, temp_str);
-    write_temp_to_path(hwmon_path, temp_str);
-
-    do_log(LOG_INFO, "Extracted temperature from response: %d°C => %s (m°C)", degC, temp_str);
+    
+    // Extract modem temperature
+    if (modem_temp) {
+        const char *temp_ptr = strstr(response, modem_prefix);
+        if (temp_ptr) {
+            temp_ptr += strlen(modem_prefix);
+            // Skip any whitespace and comma
+            while (*temp_ptr && (*temp_ptr == ' ' || *temp_ptr == ',' || *temp_ptr == '\t')) temp_ptr++;
+            if (*temp_ptr) {
+                *modem_temp = atoi(temp_ptr);
+            }
+        }
+    }
+    
+    // Extract AP temperature
+    if (ap_temp) {
+        const char *temp_ptr = strstr(response, ap_prefix);
+        if (temp_ptr) {
+            temp_ptr += strlen(ap_prefix);
+            // Skip any whitespace and comma
+            while (*temp_ptr && (*temp_ptr == ' ' || *temp_ptr == ',' || *temp_ptr == '\t')) temp_ptr++;
+            if (*temp_ptr) {
+                *ap_temp = atoi(temp_ptr);
+            }
+        }
+    }
+    
+    // Extract PA temperature
+    if (pa_temp) {
+        const char *temp_ptr = strstr(response, pa_prefix);
+        if (temp_ptr) {
+            temp_ptr += strlen(pa_prefix);
+            // Skip any whitespace and comma
+            while (*temp_ptr && (*temp_ptr == ' ' || *temp_ptr == ',' || *temp_ptr == '\t')) temp_ptr++;
+            if (*temp_ptr) {
+                *pa_temp = atoi(temp_ptr);
+            }
+        }
+    }
+    
+    // Validate extracted temperatures (basic sanity check)
+    if (modem_temp && (*modem_temp < -40 || *modem_temp > 120)) {
+        do_log(LOG_WARNING, "Extracted modem temperature out of range: %d°C", *modem_temp);
+        return 0;
+    }
+    
+    return 1; // Success
 }
 
 /* Handles missing responses by writing an error value to sysfs */
