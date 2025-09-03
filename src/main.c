@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
             time_t last_update = 0;
             
             if (!json_output) {
-                printf("Monitoring temperature (press Ctrl+C to exit)...\n");
+                printf("Monitoring temperature at %d seconds interval (press Ctrl+C to exit)...\n", config.interval);
             }
             
             while (!shutdown_requested) {
