@@ -9,9 +9,9 @@ on:
         default: 'both'
         type: choice
         options:
-        # - '23.05'
+        - '23.05'
         - '24.10'
-        # - 'both'
+        - 'both'
       verbose:
         description: 'Verbose build output'
         required: false
@@ -25,8 +25,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # - openwrt_version: '23.05'
-          #   arch: 'x86_64-23.05.0'
+          - openwrt_version: '23.05'
+            arch: 'x86_64-23.05.0'
           - openwrt_version: '24.10'
             arch: 'x86_64-24.10.0'
       fail-fast: false
