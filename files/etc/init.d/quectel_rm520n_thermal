@@ -1,12 +1,20 @@
 #!/bin/sh /etc/rc.common
-# OpenWrt initialization script for the quectel_rm520n_temp_daemon
-# This script supports module loading for the Quectel RM520N thermal monitoring.
+#
+# Copyright (C) 2025 Christopher Sollinger
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+# OpenWRT initialization script for Quectel RM520N thermal management
+# This script provides procd-based service management for the
+# Quectel RM520N thermal monitoring daemon with automatic
+# kernel module loading and configuration monitoring.
 
 # shellcheck disable=SC2034
 USE_PROCD=1
 START=50
 STOP=50
-SERVICE_PROVIDES="quectel_rm520n_temp_daemon"
+SERVICE_PROVIDES="quectel_rm520n_thermal"
+SERVICE_NAME="quectel_rm520n_thermal"
 
 # Function to read UCI configuration
 load_config() {
@@ -15,10 +23,19 @@ load_config() {
     # Set defaults
     fallback_register=1
     debug=0
+    enabled=1
+    auto_start=1
     
     # Read options from UCI config
     config_get fallback_register settings fallback_register 1
     config_get debug settings debug 0
+    config_get enabled settings enabled 1
+    config_get auto_start settings auto_start 1
+}
+
+# Service data function - provides service information
+service_data() {
+    echo ""
 }
 
 # Function to start the service
@@ -26,22 +43,35 @@ start_service() {
     # Load configuration
     load_config
     
-    # Load kernel modules
+    # Check if service is enabled
+    if [ "$enabled" != "1" ]; then
+        echo "Service is disabled in configuration"
+        return 1
+    fi
+    
+    # Load kernel modules if fallback is enabled
     if [ "$fallback_register" = "1" ]; then
         for module in quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon; do
             if ! lsmod | grep -q "^${module}"; then
-                insmod ${module} 2>/dev/null
+                insmod ${module} 2>/dev/null || true
             fi
         done
+        
+        # Update kernel module thresholds from UCI configuration
+        if [ -x /usr/bin/quectel_rm520n_temp ]; then
+            /usr/bin/quectel_rm520n_temp config 2>/dev/null || true
+        fi
     fi
     
-    # Start the daemon
+    # Start the daemon with procd
     procd_open_instance
-    procd_set_param command /usr/bin/quectel_rm520n_temp_daemon --daemon
-    procd_set_param respawn 3600 5 0  # Respawn at most 5 times in 1 hour
+    procd_set_param command /usr/bin/quectel_rm520n_temp daemon
+    procd_set_param respawn 3600 5 5  # Respawn threshold 1h, timeout 5s, retry 5 times
     procd_set_param stdout 1  # Forward stdout to syslog
     procd_set_param stderr 1  # Forward stderr to syslog
+    procd_set_param term_timeout 10  # Wait 10 seconds for clean shutdown
     
+    # Set environment variables if debug is enabled
     if [ "$debug" = "1" ]; then
         procd_set_param env DEBUG=1
     fi
@@ -49,7 +79,85 @@ start_service() {
     procd_close_instance
 }
 
-# Function for service status
+# Function to stop the service
+stop_service() {
+    # Cleanup any PID files that might exist
+    rm -f /var/run/quectel_rm520n_temp.pid
+}
+
+# Function to reload configuration
+reload_service() {
+    echo "Reloading Quectel RM520N thermal service due to config change..."
+    
+    # Update kernel module thresholds from UCI configuration first
+    if [ -x /usr/bin/quectel_rm520n_temp ]; then
+        echo "Updating kernel module thresholds from UCI configuration..."
+        /usr/bin/quectel_rm520n_temp config
+    fi
+    
+    # Stop the current service
+    stop_service
+    
+    # Wait a moment for clean shutdown
+    sleep 1
+    
+    # Start the service with new configuration
+    start_service
+    
+    echo "Service reloaded successfully with new configuration"
+}
+
+# Function for service triggers
 service_triggers() {
     procd_add_reload_trigger "quectel_rm520n_thermal"
+    
+    # Add config file change trigger - this will call reload_service automatically
+    # Note: 'uci commit' from command line requires '/sbin/reload_config' to trigger this
+    procd_add_config_trigger "config.change" "quectel_rm520n_thermal" /etc/init.d/quectel_rm520n_thermal reload
 }
+
+# Function to manually update configuration
+update_config() {
+    echo "Updating kernel module thresholds from UCI configuration..."
+    if [ -x /usr/bin/quectel_rm520n_temp ]; then
+        /usr/bin/quectel_rm520n_temp config
+    else
+        echo "Error: quectel_rm520n_temp binary not found"
+        return 1
+    fi
+}
+
+# Default action - show usage if no arguments provided
+default() {
+    echo "Usage: $0 {start|stop|restart|reload|status|enable|disable|update_config}"
+    echo ""
+    echo "Commands:"
+    echo "  start        - Start the Quectel RM520N thermal management service"
+    echo "  stop         - Stop the service"
+    echo "  restart      - Restart the service"
+    echo "  reload       - Reload configuration and restart service"
+    echo "  status       - Show service status"
+    echo "  enable       - Enable service to start on boot"
+    echo "  disable      - Disable service from starting on boot"
+    echo "  update_config - Manually update kernel module thresholds from UCI config"
+    echo ""
+    echo "Configuration: /etc/config/quectel_rm520n_thermal"
+    echo "Logs: /var/log/messages (filter: quectel_rm520n_temp)"
+    echo ""
+    echo "Configuration options:"
+    echo "  enabled           - Enable/disable the service (1/0)"
+    echo "  auto_start        - Auto-start on boot (1/0)"
+    echo "  fallback_register - Load kernel modules automatically (1/0)"
+    echo "  debug            - Enable debug logging (1/0)"
+    echo ""
+    echo "Auto-reload: UCI config changes automatically reload the service"
+    echo "  Note: When using 'uci commit' from command line, call '/sbin/reload_config' after"
+    echo "        to trigger the auto-reload. LuCI web interface works automatically."
+}
+
+# Handle update_config command
+case "$1" in
+    update_config)
+        update_config
+        ;;
+esac

@@ -2,7 +2,19 @@ config quectel_rm520n_thermal 'settings'
 	option serial_port '/dev/ttyUSB3'
 	option interval '10'
 	option baud_rate '115200'
-	option temp_prefix 'modem-ambient-usr'
 	option error_value 'N/A'
 	option fallback_register '1'
 	option debug '0'
+	option enabled '1'
+	option auto_start '1'
+	
+	# Temperature thresholds (in °C, converted to m°C internally)
+	option temp_min '-30'
+	option temp_max '75'
+	option temp_crit '85'
+	option temp_default '40'
+	
+	# Temperature parsing prefixes (configurable for different modem models)
+	option temp_modem_prefix 'modem-ambient-usr'
+	option temp_ap_prefix 'cpuss-0-usr'
+	option temp_pa_prefix 'modem-lte-sub6-pa1'

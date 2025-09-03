@@ -1,4 +1,10 @@
-# This file defines the kernel modules to be built.
-obj-m += quectel_rm520n_temp.o
-obj-m += quectel_rm520n_temp_sensor.o
-obj-m += quectel_rm520n_temp_sensor_hwmon.o
+# Kernel module build configuration for Quectel RM520N thermal management
+# This file defines the kernel modules to be built
+obj-m += kmod/quectel_rm520n_temp.o
+obj-m += kmod/quectel_rm520n_temp_sensor.o
+obj-m += kmod/quectel_rm520n_temp_sensor_hwmon.o
+
+# Dependencies: each module depends on its source file
+kmod/quectel_rm520n_temp-objs := kmod/main.o
+kmod/quectel_rm520n_temp_sensor-objs := kmod/sensor.o
+kmod/quectel_rm520n_temp_sensor_hwmon-objs := kmod/hwmon.o

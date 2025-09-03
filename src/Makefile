@@ -1,10 +1,5 @@
-# File: src/Makefile
-# -----------------------------------------
-# This Makefile enables:
-#  - Building the kernel modules out-of-tree ("make modules")
-#  - Building the userspace program ("make" without arguments)
-#
-# Allows local testing without building the entire OpenWrt.
+# Source Makefile for Quectel RM520N thermal management
+# This Makefile is called by the main OpenWRT Makefile
 
 # Out-of-tree kernel build path
 KDIR ?= /lib/modules/$(shell uname -r)/build
@@ -16,11 +11,11 @@ CFLAGS += -Wall -Wextra
 LIBS ?= -luci -lsysfs
 
 # Kernel module sources (via Kbuild)
-KBUILD_FILES = module_temp.c quectel_rm520n_temp_sensor.c quectel_rm520n_temp_sensor_hwmon.c
+KBUILD_FILES = kmod/quectel_rm520n_temp.c kmod/quectel_rm520n_temp_sensor.c kmod/quectel_rm520n_temp_sensor_hwmon.c
 
 # Userspace program
-TARGET = quectel_rm520n_temp_daemon
-SRCS   = daemon.c quectel_rm520n_temp_daemon_sensor.c quectel_rm520n_temp_daemon_sensor_hwmon.c
+TARGET = quectel_rm520n_temp
+SRCS   = main.c serial.c config.c logging.c temperature.c ui.c system.c cli.c daemon.c uci_config.c
 OBJS   = $(SRCS:.c=.o)
 
 all: $(TARGET)
