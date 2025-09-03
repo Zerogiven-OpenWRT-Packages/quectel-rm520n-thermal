@@ -65,6 +65,7 @@ make
 ### Existing System
 ```bash
 make package/quectel-rm520n-thermal/compile V=s
+opkg install bin/packages/.../kmod-quectel-rm520n-thermal.ipk
 opkg install bin/packages/.../quectel-rm520n-thermal.ipk
 ```
 
