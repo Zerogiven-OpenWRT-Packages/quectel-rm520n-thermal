@@ -10,9 +10,6 @@ CFLAGS ?= -O2 -Wall
 CFLAGS += -Wall -Wextra
 LIBS ?= -luci -lsysfs
 
-# Kernel module sources (via Kbuild)
-KBUILD_FILES = kmod/quectel_rm520n_temp.c kmod/quectel_rm520n_temp_sensor.c kmod/quectel_rm520n_temp_sensor_hwmon.c
-
 # Userspace program
 TARGET = quectel_rm520n_temp
 SRCS   = main.c serial.c config.c logging.c temperature.c ui.c system.c cli.c daemon.c uci_config.c
