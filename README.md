@@ -14,7 +14,7 @@
 
 ## Overview
 
-This project provides a comprehensive set of tools and kernel modules for monitoring and managing the temperature of Quectel modems (primarily RM520N-GL, but compatible with other modems supporting AT+QTEMP). It is designed as an OpenWRT package and can be integrated into custom OpenWRT builds (compatible with OpenWRT 24.10 and newer versions). The package includes support for dynamic Device Tree Overlays (DTO), a configurable daemon, CLI tools, and various kernel modules for thermal management.
+This project provides a comprehensive set of tools and kernel modules for monitoring and managing the temperature of Quectel modems (primarily RM520N-GL, but compatible with other modems supporting AT+QTEMP). It is designed as an OpenWRT package and can be integrated into custom OpenWRT builds. The package includes support for dynamic Device Tree Overlays (DTO), a configurable daemon, CLI tools, and various kernel modules for thermal management.
 
 **Note**: This package is designed to work with any modem that supports AT+QTEMP command and provides temperature data in a similar format to the Quectel RM520N. The temperature parsing prefixes are configurable via UCI to support different modem models and response formats.
 

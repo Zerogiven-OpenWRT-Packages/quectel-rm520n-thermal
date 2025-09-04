@@ -13,26 +13,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - openwrt_version: '23.05'
-            arch: 'x86_64-23.05.0'
-            libgpiod_version: 'v1'
           - openwrt_version: '24.10'
             arch: 'x86_64-24.10.0'
-            libgpiod_version: 'v2'
       fail-fast: false
     
     outputs:
       version: ${{ steps.get_version.outputs.version }}
       tag_name: ${{ steps.get_version.outputs.tag_name }}
-      package_path: ${{ steps.build_package.outputs.package_path }}
-      package_name: ${{ steps.build_package.outputs.package_name }}
+      kmod_package_path: ${{ steps.package_info.outputs.kmod_package_path }}
+      kmod_package_name: ${{ steps.package_info.outputs.kmod_package_name }}
+      userspace_package_path: ${{ steps.package_info.outputs.userspace_package_path }}
+      userspace_package_name: ${{ steps.package_info.outputs.userspace_package_name }}
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          path: ${{ github.workspace }}/feed/gpio-fan-rpm
+          path: ${{ github.workspace }}/feed/quectel-rm520n-thermal
 
       - name: Get version from tag
         id: get_version
@@ -54,7 +52,7 @@ jobs:
         uses: openwrt/gh-action-sdk@main
         env:
           ARCH: ${{ matrix.arch }}
-          PACKAGES: gpio-fan-rpm
+          PACKAGES: quectel-rm520n-thermal
           V: s
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
@@ -62,29 +60,41 @@ jobs:
       - name: Find and save package info
         id: package_info
         run: |
-          # Find the built package
-          PACKAGE_PATH=$(find ${{ github.workspace }}/artifacts/bin/ -name 'gpio-fan-rpm*.ipk' -type f | head -1)
+          # Find the built packages (kernel modules and userspace)
+          KMOD_PACKAGE_PATH=$(find ${{ github.workspace }}/artifacts/bin/ -name 'kmod-quectel-rm520n-thermal*.ipk' -type f | head -1)
+          USERSPACE_PACKAGE_PATH=$(find ${{ github.workspace }}/artifacts/bin/ -name 'quectel-rm520n-thermal*.ipk' -type f | head -1)
           
-          if [ -z "$PACKAGE_PATH" ]; then
-            echo "❌ No package found for OpenWrt ${{ matrix.openwrt_version }}"
+          if [ -z "$KMOD_PACKAGE_PATH" ]; then
+            echo "❌ No kernel module package found for OpenWrt ${{ matrix.openwrt_version }}"
             exit 1
           fi
           
-          PACKAGE_NAME=$(basename "$PACKAGE_PATH")
+          if [ -z "$USERSPACE_PACKAGE_PATH" ]; then
+            echo "❌ No userspace package found for OpenWrt ${{ matrix.openwrt_version }}"
+            exit 1
+          fi
           
-          echo "✅ Found package: $PACKAGE_NAME"
-          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
-          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          KMOD_PACKAGE_NAME=$(basename "$KMOD_PACKAGE_PATH")
+          USERSPACE_PACKAGE_NAME=$(basename "$USERSPACE_PACKAGE_PATH")
+          
+          echo "✅ Found kernel module package: $KMOD_PACKAGE_NAME"
+          echo "✅ Found userspace package: $USERSPACE_PACKAGE_NAME"
+          
+          echo "kmod_package_path=$KMOD_PACKAGE_PATH" >> $GITHUB_OUTPUT
+          echo "kmod_package_name=$KMOD_PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "userspace_package_path=$USERSPACE_PACKAGE_PATH" >> $GITHUB_OUTPUT
+          echo "userspace_package_name=$USERSPACE_PACKAGE_NAME" >> $GITHUB_OUTPUT
           
           # Copy to a versioned directory for the release
           mkdir -p ${{ github.workspace }}/release-assets
-          cp "$PACKAGE_PATH" "${{ github.workspace }}/release-assets/gpio-fan-rpm-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}.ipk"
+          cp "$KMOD_PACKAGE_PATH" "${{ github.workspace }}/release-assets/kmod-quectel-rm520n-thermal-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}.ipk"
+          cp "$USERSPACE_PACKAGE_PATH" "${{ github.workspace }}/release-assets/quectel-rm520n-thermal-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}.ipk"
 
-      - name: Upload package artifact
+      - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gpio-fan-rpm-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}.ipk
-          path: ${{ github.workspace }}/release-assets/gpio-fan-rpm-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}.ipk
+          name: quectel-rm520n-thermal-${{ matrix.openwrt_version }}-${{ steps.get_version.outputs.version }}
+          path: ${{ github.workspace }}/release-assets/*.ipk
           retention-days: 30
 
   create-release:
@@ -98,43 +108,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate dynamic release notes
+      - name: Generate release notes
         id: release_notes
         run: |
-          # Make the script executable and run it
-          chmod +x scripts/generate-release-notes.sh
-          
-          # Generate release notes to a file
-          ./scripts/generate-release-notes.sh > release-notes.md
-          
-          # Read the file content for GitHub Actions output
-          RELEASE_BODY=$(cat release-notes.md)
-          
-          # Use GitHub Actions multiline output syntax
-          echo "release_body<<EOF" >> $GITHUB_OUTPUT
-          cat release-notes.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Generate basic release notes
+          echo "## Quectel RM520N Thermal Management Package v${{ needs.build-packages.outputs.version }}" > release-notes.md
+          echo "" >> release-notes.md
+          echo "This release includes both kernel modules and userspace tools for Quectel RM520N thermal management." >> release-notes.md
+          echo "" >> release-notes.md
+          echo "### Packages included:" >> release-notes.md
+          echo "- **kmod-quectel-rm520n-thermal**: Kernel modules for sysfs, thermal sensors, and hwmon integration" >> release-notes.md
+          echo "- **quectel-rm520n-thermal**: Userspace tools and configuration" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "### Installation:" >> release-notes.md
+          echo "1. Install the kernel module package first: \`opkg install kmod-quectel-rm520n-thermal*.ipk\`" >> release-notes.md
+          echo "2. Install the userspace package: \`opkg install quectel-rm520n-thermal*.ipk\`" >> release-notes.md
 
       - name: Download all package artifacts
         uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/release-assets/
-          pattern: gpio-fan-rpm-*.ipk
+          pattern: quectel-rm520n-thermal-*.ipk
           merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.build-packages.outputs.tag_name }}
-          # name: "Release ${{ needs.build-packages.outputs.version }}"
-          # body: ${{ steps.release_notes.outputs.release_body }}
+          name: "Release ${{ needs.build-packages.outputs.version }}"
+          body_path: release-notes.md
           files: ${{ github.workspace }}/release-assets/*.ipk
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
-          generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.OWRT_PACKAGE_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
         run: |
@@ -144,9 +152,9 @@ jobs:
           echo "✅ **Release Created**: v$CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Packages Built**: " >> $GITHUB_STEP_SUMMARY
-          echo "- OpenWRT 23.05 (libgpiod v1)" >> $GITHUB_STEP_SUMMARY
-          echo "- OpenWRT 24.10 (libgpiod v2)" >> $GITHUB_STEP_SUMMARY
+          echo "- OpenWRT 24.10" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package Files**: " >> $GITHUB_STEP_SUMMARY
           ls ${{ github.workspace }}/release-assets/ >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Architecture**: x86_64" >> $GITHUB_STEP_SUMMARY

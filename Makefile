@@ -64,13 +64,7 @@ endef
 # --- Build/Prepare ---
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
-	# Copy all source files explicitly to ensure proper structure
-	$(CP) ./src/*.c $(PKG_BUILD_DIR)/
-	$(CP) ./src/*.h $(PKG_BUILD_DIR)/
-	$(CP) ./src/Makefile $(PKG_BUILD_DIR)/
-	$(CP) ./src/Kbuild $(PKG_BUILD_DIR)/
-	# Copy kmod directory
-	$(CP) -r ./src/kmod $(PKG_BUILD_DIR)/
+	$(CP) ./src/* $(PKG_BUILD_DIR)/
 endef
 
 # --- Build/Compile ---

@@ -9,8 +9,3 @@ obj-m += kmod/quectel_rm520n_temp_sensor_hwmon.o
 kmod/quectel_rm520n_temp-objs := kmod/main.o
 kmod/quectel_rm520n_temp_sensor-objs := kmod/sensor.o
 kmod/quectel_rm520n_temp_sensor_hwmon-objs := kmod/hwmon.o
-
-# Source file dependencies - ensure files are found
-kmod/main.o: kmod/main.c
-kmod/sensor.o: kmod/sensor.c
-kmod/hwmon.o: kmod/hwmon.c

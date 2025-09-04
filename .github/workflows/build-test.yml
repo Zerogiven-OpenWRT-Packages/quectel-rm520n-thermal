@@ -6,12 +6,10 @@ on:
       openwrt_version:
         description: 'OpenWrt version to test'
         required: true
-        default: 'both'
+        default: '24.10'
         type: choice
         options:
-        - '23.05'
         - '24.10'
-        - 'both'
       verbose:
         description: 'Verbose build output'
         required: false
@@ -25,23 +23,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - openwrt_version: '23.05'
-            arch: 'x86_64-23.05.0'
           - openwrt_version: '24.10'
             arch: 'x86_64-24.10.0'
       fail-fast: false
     
     steps:
-      - name: Check if version should be built
-        run: |
-          # Check if this matrix combination should be built
-          if [ "${{ github.event.inputs.openwrt_version }}" != "both" ] && [ "${{ github.event.inputs.openwrt_version }}" != "${{ matrix.openwrt_version }}" ]; then
-            echo "Skipping build: OpenWrt version mismatch (requested: ${{ github.event.inputs.openwrt_version }}, matrix: ${{ matrix.openwrt_version }})"
-            exit 0
-          fi
-          
-          echo "Proceeding with build for OpenWrt ${{ matrix.openwrt_version }}"
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:

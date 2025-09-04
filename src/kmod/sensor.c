@@ -29,7 +29,7 @@
  * For earlier kernels, we define it here to ensure compatibility
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
-/* Use 0 as a safe default value for older kernels (OpenWRT 23.05 compatibility) */
+/* Use 0 as a safe default value for kernels before 5.17 */
 #define THERMAL_EVENT_UNSPECIFIED 0
 #endif
 
@@ -138,7 +138,7 @@ static ssize_t cur_temp_store(struct device *dev, struct device_attribute *attr,
         data->cur_temp = val; /* Update the current temperature */
         /* Temperature updated successfully */
         
-        /* Notify the thermal framework with appropriate backward compatibility */
+        /* Notify the thermal framework of temperature changes */
         thermal_zone_device_update(data->tzd, THERMAL_EVENT_UNSPECIFIED);
         return count;
     }
@@ -156,7 +156,7 @@ static DEVICE_ATTR_RW(cur_temp);
  *
  * Initializes the virtual thermal sensor, allocates memory, registers
  * with the thermal framework, and creates sysfs attributes. Handles
- * kernel version compatibility for thermal zone registration.
+ * thermal zone registration.
  *
  * Return: 0 on success, negative error code on failure
  */
@@ -184,20 +184,9 @@ static int quectel_temp_probe(struct platform_device *pdev)
     }
 
     /* Register the thermal zone with the thermal framework
-     * Using proper conditional compilation based on kernel version
+     * Using devm_thermal_of_zone_register
      */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,0)
-    /* For OpenWRT with kernel 6.6 (and future versions) */
     data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
-    /* Use devm_thermal_of_zone_register for kernel 5.15+ */
-    data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data, &quectel_temp_ops);
-#else
-    /* Fallback to the traditional registration method for older kernels */
-    data->tzd = devm_thermal_of_zone_device_register(&pdev->dev, "quectel_rm520n", 
-                                                0, data, &quectel_temp_ops, 
-                                                NULL, 0, 0);
-#endif
 
     if (IS_ERR(data->tzd)) {
         ret = PTR_ERR(data->tzd);
