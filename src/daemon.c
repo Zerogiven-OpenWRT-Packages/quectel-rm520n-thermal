@@ -25,7 +25,6 @@
 #include "include/temperature.h"
 #include "include/system.h"
 #include "include/uci_config.h"
-#include "include/prometheus.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \
@@ -286,22 +285,6 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     g_daemon_start_time = time(NULL);
 
     logging_info("Daemon started successfully");
-
-    // Initialize Prometheus metrics exporter if enabled
-    prometheus_config_t prom_config = {
-        .enabled = config.prometheus_enabled,
-        .port = config.prometheus_port,
-        .server_fd = -1
-    };
-
-    if (prom_config.enabled) {
-        if (prometheus_init(&prom_config) == 0) {
-            logging_info("Prometheus metrics export enabled on port %d", prom_config.port);
-        } else {
-            logging_warning("Failed to initialize Prometheus metrics export, continuing without metrics");
-            prom_config.enabled = false;
-        }
-    }
 
     // Check kernel module status
     logging_info("Checking kernel module status...");
@@ -664,63 +647,6 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         g_stats.serial_errors, g_stats.at_command_errors, g_stats.parse_errors);
         }
 
-        // Handle Prometheus metrics requests (non-blocking)
-        if (prom_config.enabled) {
-            // Read current temperature from sysfs for metrics
-            int current_temp_mdeg = DEFAULT_TEMP_DEFAULT * 1000;
-            FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "r");
-            if (temp_fp) {
-                char temp_buf[32];
-                if (fgets(temp_buf, sizeof(temp_buf), temp_fp) != NULL) {
-                    current_temp_mdeg = atoi(temp_buf);
-                }
-                fclose(temp_fp);
-            }
-
-            // Read thresholds from sysfs
-            int temp_min_mdeg = DEFAULT_TEMP_MIN;
-            int temp_max_mdeg = DEFAULT_TEMP_MAX;
-            int temp_crit_mdeg = DEFAULT_TEMP_CRIT;
-
-            FILE *min_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_min", "r");
-            if (min_fp) {
-                char buf[32];
-                if (fgets(buf, sizeof(buf), min_fp) != NULL) temp_min_mdeg = atoi(buf);
-                fclose(min_fp);
-            }
-
-            FILE *max_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_max", "r");
-            if (max_fp) {
-                char buf[32];
-                if (fgets(buf, sizeof(buf), max_fp) != NULL) temp_max_mdeg = atoi(buf);
-                fclose(max_fp);
-            }
-
-            FILE *crit_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_crit", "r");
-            if (crit_fp) {
-                char buf[32];
-                if (fgets(buf, sizeof(buf), crit_fp) != NULL) temp_crit_mdeg = atoi(buf);
-                fclose(crit_fp);
-            }
-
-            // Build metrics structure
-            prometheus_metrics_t metrics = {
-                .temperature_celsius = current_temp_mdeg / 1000,
-                .temp_min_celsius = temp_min_mdeg / 1000,
-                .temp_max_celsius = temp_max_mdeg / 1000,
-                .temp_crit_celsius = temp_crit_mdeg / 1000,
-                .iterations_total = g_stats.total_iterations,
-                .reads_success = g_stats.successful_reads,
-                .errors_serial = g_stats.serial_errors,
-                .errors_at_cmd = g_stats.at_command_errors,
-                .errors_parse = g_stats.parse_errors,
-                .uptime_seconds = (unsigned long)(time(NULL) - g_daemon_start_time),
-                .alert_active = g_alert_state.alert_active
-            };
-
-            prometheus_handle_request(&prom_config, &metrics);
-        }
-
         // Wait for next interval (use config instead of loop_config which is out of scope)
         sleep(config.interval);
     }
@@ -730,9 +656,6 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         close(g_serial_fd);
         g_serial_fd = -1;
     }
-
-    // Shutdown Prometheus if enabled
-    prometheus_shutdown(&prom_config);
 
     release_daemon_lock();
     logging_info("Daemon shutdown complete");
