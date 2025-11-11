@@ -4,13 +4,15 @@
  * @author Christopher Sollinger
  * @date 2025
  * @license GPL
- * 
+ *
  * Header file for system-level functions including daemon process management,
  * file locking, signal handling, and system status checking.
  */
 
 #ifndef SYSTEM_H
 #define SYSTEM_H
+
+#include <signal.h>
 
 /* ============================================================================
  * FUNCTION DECLARATIONS
