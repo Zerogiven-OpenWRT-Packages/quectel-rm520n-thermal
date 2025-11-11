@@ -231,37 +231,55 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
 
     // Check shutdown flag for graceful termination
     while (shutdown_flag && !(*shutdown_flag)) {
+        // Make a local copy of config for this iteration to avoid race conditions
+        // This ensures config doesn't change mid-operation even if updated by reload
+        config_t loop_config = config;
+
         // Update kernel module thresholds from UCI config (if changed)
         static time_t last_config_check = 0;
-        static config_t last_config = {0};
         time_t current_time = time(NULL);
         if (current_time - last_config_check >= 60) { // Check every minute
             logging_debug("Checking for UCI config changes...");
-            
+
             // Store current config for comparison
-            config_t current_config = config;
-            
-            // Reload UCI configuration
+            config_t previous_config = config;
+
+            // Reload UCI configuration (UCI library provides its own file locking)
             if (config_read_uci(&config) == 0) {
                 logging_debug("UCI configuration reloaded successfully");
                 logging_debug("New config: port=%s, baud=%d", config.serial_port, (int)config.baud_rate);
-                
+
                 // Check if config actually changed
-                bool config_changed = (strcmp(current_config.serial_port, config.serial_port) != 0) ||
-                                    (current_config.baud_rate != config.baud_rate) ||
-                                    (current_config.interval != config.interval) ||
-                                    (current_config.debug != config.debug) ||
-                                    (strcmp(current_config.temp_modem_prefix, config.temp_modem_prefix) != 0) ||
-                                    (strcmp(current_config.temp_ap_prefix, config.temp_ap_prefix) != 0) ||
-                                    (strcmp(current_config.temp_pa_prefix, config.temp_pa_prefix) != 0);
-                
+                int config_changed = (strcmp(previous_config.serial_port, config.serial_port) != 0) ||
+                                    (previous_config.baud_rate != config.baud_rate) ||
+                                    (previous_config.interval != config.interval) ||
+                                    (previous_config.debug != config.debug) ||
+                                    (strcmp(previous_config.temp_modem_prefix, config.temp_modem_prefix) != 0) ||
+                                    (strcmp(previous_config.temp_ap_prefix, config.temp_ap_prefix) != 0) ||
+                                    (strcmp(previous_config.temp_pa_prefix, config.temp_pa_prefix) != 0);
+
                 if (config_changed) {
                     logging_info("UCI configuration changed, updating kernel module thresholds");
+
+                    // If serial port or baud rate changed, close current connection
+                    // It will be reopened with new settings on next iteration
+                    if (strcmp(previous_config.serial_port, config.serial_port) != 0 ||
+                        previous_config.baud_rate != config.baud_rate) {
+                        if (fd >= 0) {
+                            logging_info("Serial configuration changed, closing current connection");
+                            close(fd);
+                            fd = -1;
+                        }
+                    }
+
                     if (uci_config_mode() == 0) {
                         logging_info("Kernel module thresholds updated from UCI config");
                     } else {
                         logging_warning("Failed to update kernel module thresholds");
                     }
+
+                    // Update loop_config for this iteration
+                    loop_config = config;
                 } else {
                     logging_debug("No UCI config changes detected, skipping kernel module update");
                 }
@@ -273,7 +291,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         
         // Initialize or reconnect serial port
         if (fd < 0) {
-            fd = init_serial_port(config.serial_port, config.baud_rate);
+            fd = init_serial_port(loop_config.serial_port, loop_config.baud_rate);
             if (fd < 0) {
                 if (serial_reconnect_attempts < max_reconnect_attempts) {
                     serial_reconnect_attempts++;
@@ -284,7 +302,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     if (reconnect_delay > 60) reconnect_delay = 60; // Cap at 60 seconds
                     continue;
                 }
-                logging_error("Failed to initialize serial port after %d attempts, continuing with error reporting", 
+                logging_error("Failed to initialize serial port after %d attempts, continuing with error reporting",
                              max_reconnect_attempts);
             } else {
                 logging_info("Serial port initialized successfully");
@@ -302,7 +320,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 logging_debug("Raw AT+QTEMP response: %s", response);
                 int modem_temp = 0, ap_temp = 0, pa_temp = 0;
                 if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp,
-                                       config.temp_modem_prefix, config.temp_ap_prefix, config.temp_pa_prefix)) {
+                                       loop_config.temp_modem_prefix, loop_config.temp_ap_prefix, loop_config.temp_pa_prefix)) {
                     // Find highest temperature
                     int best_temp = modem_temp;
                     if (ap_temp > best_temp) best_temp = ap_temp;
@@ -463,9 +481,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 }
             }
         }
-        
+
         // Wait for next interval
-        sleep(config.interval);
+        sleep(loop_config.interval);
     }
     
     // Cleanup
