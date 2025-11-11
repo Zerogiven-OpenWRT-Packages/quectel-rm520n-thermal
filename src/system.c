@@ -32,6 +32,9 @@
 #define PID_FILE "/var/run/quectel_rm520n_temp.pid"
 #define LOCK_FILE "/var/run/quectel_rm520n_temp.lock"
 
+/* Global file descriptor for daemon lock */
+static int daemon_lock_fd = -1;
+
 /* ============================================================================
  * SYSTEM MANAGEMENT FUNCTIONS
  * ============================================================================ */
@@ -72,53 +75,61 @@ int check_daemon_running(void)
 
 /**
  * Acquire daemon lock to prevent multiple instances
- * 
+ *
  * Creates a lock file using file locking (flock) to ensure only one
  * daemon instance can run at a time. Includes proper error handling
  * and cleanup on failure.
- * 
+ *
  * Following clig.dev guidelines for service robustness and graceful
  * error handling.
- * 
+ *
  * @return 0 on success, -1 on failure
  */
 int acquire_daemon_lock(void)
 {
-    int lock_fd = open(LOCK_FILE, O_CREAT | O_RDWR, 0644);
-    if (lock_fd < 0) {
+    daemon_lock_fd = open(LOCK_FILE, O_CREAT | O_RDWR, 0644);
+    if (daemon_lock_fd < 0) {
         return -1;
     }
-    
+
     // Try to acquire exclusive lock
-    if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
-        close(lock_fd);
+    if (flock(daemon_lock_fd, LOCK_EX | LOCK_NB) < 0) {
+        close(daemon_lock_fd);
+        daemon_lock_fd = -1;
         return -1; // Lock acquisition failed
     }
-    
+
     // Write PID to PID file
     FILE *pid_file = fopen(PID_FILE, "w");
     if (pid_file) {
         fprintf(pid_file, "%d\n", getpid());
         fclose(pid_file);
     }
-    
+
     return 0;
 }
 
 /**
  * Release daemon lock and cleanup resources
- * 
+ *
  * Releases the file lock, closes file descriptors, and removes
  * PID and lock files. Ensures clean shutdown and resource cleanup.
- * 
+ *
  * Following clig.dev guidelines for graceful shutdown and resource
  * management.
  */
 void release_daemon_lock(void)
 {
+    // Close and release the lock file descriptor
+    if (daemon_lock_fd >= 0) {
+        flock(daemon_lock_fd, LOCK_UN);
+        close(daemon_lock_fd);
+        daemon_lock_fd = -1;
+    }
+
     // Remove PID file
     unlink(PID_FILE);
-    
+
     // Remove lock file
     unlink(LOCK_FILE);
 }
