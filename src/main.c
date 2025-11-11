@@ -215,10 +215,14 @@ int main(int argc, char *argv[])
 
     
     // Initialize logging system
-    // Enable debug if either --debug flag is used OR UCI config has debug enabled
-    bool debug_enabled = verbose_output || config.debug;
+    // Use UCI log_level if set, with debug flag/verbose as override
+    log_level_t cli_log_level = config_parse_log_level(config.log_level);
+    if ((verbose_output || config.debug) && cli_log_level > LOG_LEVEL_DEBUG) {
+        cli_log_level = LOG_LEVEL_DEBUG;  // Debug flag overrides to enable debug
+    }
+
     logging_config_t log_config = {
-        .level = debug_enabled ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO,
+        .level = cli_log_level,
         .use_syslog = false,
         .use_stderr = true,
         .ident = BINARY_NAME

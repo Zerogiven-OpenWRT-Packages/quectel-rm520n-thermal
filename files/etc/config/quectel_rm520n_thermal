@@ -5,6 +5,7 @@ config quectel_rm520n_thermal 'settings'
 	option error_value 'N/A'
 	option fallback_register '1'
 	option debug '0'
+	option log_level 'info'
 	option enabled '1'
 	option auto_start '1'
 	

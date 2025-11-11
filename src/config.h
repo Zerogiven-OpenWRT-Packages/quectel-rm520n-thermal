@@ -22,6 +22,7 @@ typedef struct {
     speed_t baud_rate;
     char error_value[CONFIG_STRING_LEN];
     int debug;
+    char log_level[CONFIG_STRING_LEN];
     char temp_modem_prefix[CONFIG_STRING_LEN];
     char temp_ap_prefix[CONFIG_STRING_LEN];
     char temp_pa_prefix[CONFIG_STRING_LEN];
@@ -31,5 +32,6 @@ typedef struct {
 int config_read_uci(config_t *config);
 void config_set_defaults(config_t *config);
 int config_parse_baud_rate(const char *baud_str, speed_t *baud_rate);
+int config_parse_log_level(const char *level_str);
 
 #endif /* CONFIG_H */

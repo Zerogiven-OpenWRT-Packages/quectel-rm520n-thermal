@@ -31,15 +31,42 @@
 void config_set_defaults(config_t *config)
 {
     if (!config) return;
-    
+
     strcpy(config->serial_port, "/dev/ttyUSB2");
     config->interval = 10;
     config->baud_rate = B115200;
     strcpy(config->error_value, "N/A");
     config->debug = 0;
+    strcpy(config->log_level, "info");
     strcpy(config->temp_modem_prefix, "modem-ambient-usr");
     strcpy(config->temp_ap_prefix, "cpuss-0-usr");
     strcpy(config->temp_pa_prefix, "modem-lte-sub6-pa1");
+}
+
+/**
+ * Parse log level string to log_level_t value
+ * @param level_str Log level string (e.g., "debug", "info", "warning", "error")
+ * @return log_level_t value (defaults to LOG_LEVEL_INFO on invalid input)
+ */
+int config_parse_log_level(const char *level_str)
+{
+    if (!level_str) {
+        return LOG_LEVEL_INFO;
+    }
+
+    if (strcmp(level_str, "debug") == 0) {
+        return LOG_LEVEL_DEBUG;
+    } else if (strcmp(level_str, "info") == 0) {
+        return LOG_LEVEL_INFO;
+    } else if (strcmp(level_str, "warning") == 0) {
+        return LOG_LEVEL_WARNING;
+    } else if (strcmp(level_str, "error") == 0) {
+        return LOG_LEVEL_ERROR;
+    }
+
+    // Default to info for invalid values
+    logging_debug("config_parse_log_level: invalid level '%s', using 'info'", level_str);
+    return LOG_LEVEL_INFO;
 }
 
 /**
@@ -148,7 +175,13 @@ int config_read_uci(config_t *config)
         if (debug_str) {
             config->debug = atoi(debug_str);
         }
-        
+
+        // Read log level
+        const char *log_level_str = uci_lookup_option_string(ctx, section, "log_level");
+        if (log_level_str) {
+            SAFE_STRNCPY(config->log_level, log_level_str, sizeof(config->log_level));
+        }
+
         // Read temperature prefixes
         const char *modem_prefix = uci_lookup_option_string(ctx, section, "temp_modem_prefix");
         if (modem_prefix) {
