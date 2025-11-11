@@ -42,6 +42,32 @@ extern config_t config;
 #define MAX_RESPONSE 1024
 #define AT_COMMAND "AT+QTEMP\r"
 
+/* Global file descriptor for emergency cleanup */
+static int g_serial_fd = -1;
+
+/* ============================================================================
+ * CLEANUP FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * daemon_cleanup - Emergency cleanup function for unexpected termination
+ *
+ * Registered with atexit() to ensure resources are released even if
+ * the daemon exits unexpectedly. Closes open file descriptors and
+ * releases locks in a signal-safe manner.
+ */
+static void daemon_cleanup(void)
+{
+    // Close serial port if open
+    if (g_serial_fd >= 0) {
+        close(g_serial_fd);
+        g_serial_fd = -1;
+    }
+
+    // Release daemon lock
+    release_daemon_lock();
+}
+
 /* ============================================================================
  * HELPER FUNCTIONS
  * ============================================================================ */
@@ -134,7 +160,13 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         fprintf(stderr, "Try 'quectel_rm520n_temp --help' for more information\n");
         return 3;
     }
-    
+
+    // Register cleanup function for emergency shutdown
+    // This ensures resources are released even on unexpected termination
+    if (atexit(daemon_cleanup) != 0) {
+        fprintf(stderr, "Warning: Failed to register cleanup handler\n");
+    }
+
     // Initialize logging system for daemon
     logging_config_t log_config = {
         .level = config.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO,
@@ -218,7 +250,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     int serial_reconnect_attempts = 0;
     const int max_reconnect_attempts = 5;
     int reconnect_delay = 10;
-    int fd = -1;
+    g_serial_fd = -1;  // Use global for emergency cleanup access
 
     // Find hwmon path once (cached for performance)
     char hwmon_path[256] = {0};
@@ -265,10 +297,10 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     // It will be reopened with new settings on next iteration
                     if (strcmp(previous_config.serial_port, config.serial_port) != 0 ||
                         previous_config.baud_rate != config.baud_rate) {
-                        if (fd >= 0) {
+                        if (g_serial_fd >= 0) {
                             logging_info("Serial configuration changed, closing current connection");
-                            close(fd);
-                            fd = -1;
+                            close(g_serial_fd);
+                            g_serial_fd = -1;
                         }
                     }
 
@@ -290,9 +322,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         }
         
         // Initialize or reconnect serial port
-        if (fd < 0) {
-            fd = init_serial_port(loop_config.serial_port, loop_config.baud_rate);
-            if (fd < 0) {
+        if (g_serial_fd < 0) {
+            g_serial_fd = init_serial_port(loop_config.serial_port, loop_config.baud_rate);
+            if (g_serial_fd < 0) {
                 if (serial_reconnect_attempts < max_reconnect_attempts) {
                     serial_reconnect_attempts++;
                     logging_warning("Serial port init failed, retry %d/%d in %d seconds",
@@ -312,9 +344,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         }
         
         // Read temperature if serial port is available
-        if (fd >= 0) {
+        if (g_serial_fd >= 0) {
             char response[MAX_RESPONSE];
-            if (send_at_command(fd, AT_COMMAND, response, sizeof(response)) > 0) {
+            if (send_at_command(g_serial_fd, AT_COMMAND, response, sizeof(response)) > 0) {
                 // Process temperature response
                 logging_debug("Raw AT+QTEMP response length: %zu bytes", strlen(response));
                 logging_debug("Raw AT+QTEMP response: %s", response);
@@ -475,8 +507,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 // Handle serial communication errors
                 if (++serial_reconnect_attempts > 3) {
                     logging_warning("Multiple AT command failures, reopening serial port");
-                    close(fd);
-                    fd = -1;
+                    close(g_serial_fd);
+                    g_serial_fd = -1;
                     serial_reconnect_attempts = 0;
                 }
             }
@@ -485,10 +517,11 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         // Wait for next interval
         sleep(loop_config.interval);
     }
-    
+
     // Cleanup
-    if (fd >= 0) {
-        close(fd);
+    if (g_serial_fd >= 0) {
+        close(g_serial_fd);
+        g_serial_fd = -1;
     }
     
     release_daemon_lock();
