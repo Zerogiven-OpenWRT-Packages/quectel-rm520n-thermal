@@ -43,6 +43,66 @@ extern config_t config;
 #define AT_COMMAND "AT+QTEMP\r"
 
 /* ============================================================================
+ * HELPER FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
+ * @path_buf: Buffer to store the path
+ * @buf_size: Size of the buffer
+ *
+ * Dynamically discovers the hwmon device number for quectel_rm520n by
+ * scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ *
+ * @return 0 on success, -1 on failure
+ */
+static int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
+{
+    DIR *hwmon_dir;
+    struct dirent *entry;
+    int found = 0;
+
+    if (!path_buf || buf_size == 0) {
+        return -1;
+    }
+
+    hwmon_dir = opendir("/sys/class/hwmon");
+    if (!hwmon_dir) {
+        return -1;
+    }
+
+    while ((entry = readdir(hwmon_dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char name_path[256];
+        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
+            continue;
+        }
+
+        FILE *name_fp = fopen(name_path, "r");
+        if (name_fp) {
+            char dev_name[64];
+            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
+                dev_name[strcspn(dev_name, "\n")] = '\0';
+                if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
+                    fclose(name_fp);
+                    if (snprintf(path_buf, buf_size, "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)buf_size) {
+                        found = 1;
+                        logging_debug("Found quectel hwmon device: %s", path_buf);
+                        break;
+                    }
+                }
+            }
+            fclose(name_fp);
+        }
+    }
+    closedir(hwmon_dir);
+
+    return found ? 0 : -1;
+}
+
+/* ============================================================================
  * DAEMON MODE IMPLEMENTATION
  * ============================================================================ */
 
@@ -159,7 +219,16 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     const int max_reconnect_attempts = 5;
     int reconnect_delay = 10;
     int fd = -1;
-    
+
+    // Find hwmon path once (cached for performance)
+    char hwmon_path[256] = {0};
+    int hwmon_available = (find_quectel_hwmon_path(hwmon_path, sizeof(hwmon_path)) == 0);
+    if (hwmon_available) {
+        logging_info("Hwmon interface available: %s", hwmon_path);
+    } else {
+        logging_warning("Hwmon interface not found, will skip hwmon writes");
+    }
+
     // Check shutdown flag for graceful termination
     while (shutdown_flag && !(*shutdown_flag)) {
         // Update kernel module thresholds from UCI config (if changed)
@@ -266,17 +335,17 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     }
                     
                     // Write to hwmon interface (for system monitoring tools)
-                    if (access("/sys/class/hwmon/hwmon3/temp1_input", W_OK) == 0) {
-                        FILE *fp = fopen("/sys/class/hwmon/hwmon3/temp1_input", "w");
+                    if (hwmon_available && access(hwmon_path, W_OK) == 0) {
+                        FILE *fp = fopen(hwmon_path, "w");
                         if (fp) {
                             fprintf(fp, "%d", best_temp_mdeg);
                             fclose(fp);
                             logging_debug("Wrote temperature to hwmon interface: %d m°C", best_temp_mdeg);
                         } else {
-                            logging_warning("Failed to open hwmon interface for writing");
+                            logging_warning("Failed to open hwmon interface for writing: %s", hwmon_path);
                         }
                     } else {
-                        logging_debug("Hwmon interface not writable: /sys/class/hwmon/hwmon3/temp1_input");
+                        logging_debug("Hwmon interface not available or not writable: %s", hwmon_available ? hwmon_path : "not found");
                     }
                     
                     // Write to platform device interface if available
