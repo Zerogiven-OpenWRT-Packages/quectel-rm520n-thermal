@@ -35,6 +35,10 @@ static int temp_default = DEFAULT_TEMP_DEFAULT;
 /* Current temperature value in m°C */
 static int modem_temp = DEFAULT_TEMP_DEFAULT;
 
+/* Statistics counters */
+static unsigned long total_updates = 0;
+static unsigned long last_update_time = 0;
+
 /**
  * temp_show - Sysfs read function for current temperature
  * @kobj: Kernel object pointer
@@ -86,6 +90,9 @@ static ssize_t temp_store(struct kobject *kobj, struct kobj_attribute *attr, con
     if (kstrtoint(buf, 10, &value) == 0) {
         /* Store the temperature value in m°C */
         modem_temp = value;
+        /* Update statistics */
+        total_updates++;
+        last_update_time = jiffies / HZ;  /* Convert jiffies to seconds */
         /* Temperature updated successfully */
         return count;
     }
@@ -324,6 +331,30 @@ static ssize_t temp_crit_store(struct kobject *kobj, struct kobj_attribute *attr
 }
 
 /**
+ * stats_show - Sysfs read function for statistics
+ * @kobj: Kernel object pointer
+ * @attr: Kernel object attribute
+ * @buf: Output buffer for stats string
+ *
+ * Returns statistics about temperature updates.
+ *
+ * Return: Number of characters written to buffer
+ */
+static ssize_t stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+    (void)kobj;
+    (void)attr;
+
+    /* Validate output buffer */
+    if (!buf) {
+        return -EINVAL;
+    }
+
+    return scnprintf(buf, PAGE_SIZE, "total_updates: %lu\nlast_update_time: %lu\n",
+                     total_updates, last_update_time);
+}
+
+/**
  * temp_default_store - Sysfs write function for default temperature threshold
  * @kobj: Kernel object pointer
  * @attr: Kernel object attribute
@@ -368,12 +399,13 @@ static ssize_t temp_default_store(struct kobject *kobj, struct kobj_attribute *a
     return -EINVAL;
 }
 
-/* Sysfs attributes: 0644 (read/write for owner, read for others) */
+/* Sysfs attributes: 0644 (read/write for owner, read for others), 0444 (read-only) */
 static struct kobj_attribute temp_attribute = __ATTR(temp, 0644, temp_show, temp_store);
 static struct kobj_attribute temp_min_attribute = __ATTR(temp_min, 0644, temp_min_show, temp_min_store);
 static struct kobj_attribute temp_max_attribute = __ATTR(temp_max, 0644, temp_max_show, temp_max_store);
 static struct kobj_attribute temp_crit_attribute = __ATTR(temp_crit, 0644, temp_crit_show, temp_crit_store);
 static struct kobj_attribute temp_default_attribute = __ATTR(temp_default, 0644, temp_default_show, temp_default_store);
+static struct kobj_attribute stats_attribute = __ATTR(stats, 0444, stats_show, NULL);
 
 static struct kobject *temp_kobj;
 
@@ -430,6 +462,12 @@ static int __init quectel_rm520n_temp_init(void)
         goto cleanup;
     }
 
+    ret = sysfs_create_file(temp_kobj, &stats_attribute.attr);
+    if (ret) {
+        pr_err("Quectel RM520N: Failed to create stats attribute (error: %d)\n", ret);
+        goto cleanup;
+    }
+
     pr_info("Quectel RM520N temperature module loaded successfully with thresholds: min=%d, max=%d, crit=%d, default=%d m°C\n",
             temp_min, temp_max, temp_crit, temp_default);
     return 0;
@@ -454,6 +492,7 @@ static void __exit quectel_rm520n_temp_exit(void)
     sysfs_remove_file(temp_kobj, &temp_max_attribute.attr);
     sysfs_remove_file(temp_kobj, &temp_crit_attribute.attr);
     sysfs_remove_file(temp_kobj, &temp_default_attribute.attr);
+    sysfs_remove_file(temp_kobj, &stats_attribute.attr);
     
     /* Remove the kobject (this also removes the directory) */
     kobject_put(temp_kobj);

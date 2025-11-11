@@ -45,6 +45,17 @@ extern config_t config;
 /* Global file descriptor for emergency cleanup */
 static int g_serial_fd = -1;
 
+/* Error tracking statistics */
+typedef struct {
+    unsigned long serial_errors;       /* Serial port open/communication failures */
+    unsigned long at_command_errors;   /* AT command send failures */
+    unsigned long parse_errors;        /* Temperature parsing failures */
+    unsigned long successful_reads;    /* Successful temperature reads */
+    unsigned long total_iterations;    /* Total monitoring iterations */
+} daemon_stats_t;
+
+static daemon_stats_t g_stats = {0};
+
 /* ============================================================================
  * CLEANUP FUNCTIONS
  * ============================================================================ */
@@ -269,6 +280,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
 
     // Check shutdown flag for graceful termination
     while (shutdown_flag && !(*shutdown_flag)) {
+        // Increment iteration counter
+        g_stats.total_iterations++;
+
         // Make a local copy of config for this iteration to avoid race conditions
         // This ensures config doesn't change mid-operation even if updated by reload
         config_t loop_config = config;
@@ -331,6 +345,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         if (g_serial_fd < 0) {
             g_serial_fd = init_serial_port(loop_config.serial_port, loop_config.baud_rate);
             if (g_serial_fd < 0) {
+                g_stats.serial_errors++;
                 if (serial_reconnect_attempts < max_reconnect_attempts) {
                     serial_reconnect_attempts++;
                     logging_warning("Serial port init failed, retry %d/%d in %d seconds",
@@ -376,6 +391,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     logging_debug("Temperature: %d°C (modem: %d°C, AP: %d°C, PA: %d°C)", 
                                best_temp, modem_temp, ap_temp, pa_temp);
                     
+                    // Increment successful read counter
+                    g_stats.successful_reads++;
+
                     // Write to main sysfs interface (primary interface for CLI tool)
                     if (access("/sys/kernel/quectel_rm520n/temp", W_OK) == 0) {
                         FILE *fp = fopen("/sys/kernel/quectel_rm520n/temp", "w");
@@ -510,6 +528,15 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     }
                 }
             } else {
+                // Temperature parsing failed
+                g_stats.parse_errors++;
+                logging_warning("Failed to parse temperature from AT response");
+            }
+            } else {
+                // AT command failed
+                g_stats.at_command_errors++;
+                logging_warning("AT command communication failed");
+
                 // Handle serial communication errors
                 if (++serial_reconnect_attempts > 3) {
                     logging_warning("Multiple AT command failures, reopening serial port");
@@ -518,6 +545,17 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     serial_reconnect_attempts = 0;
                 }
             }
+        }
+
+        // Log statistics periodically (every 100 iterations)
+        if (g_stats.total_iterations % 100 == 0) {
+            double success_rate = g_stats.total_iterations > 0
+                ? (100.0 * g_stats.successful_reads / g_stats.total_iterations)
+                : 0.0;
+            logging_info("Daemon statistics: iterations=%lu, successful=%lu (%.1f%%), "
+                        "serial_errors=%lu, at_errors=%lu, parse_errors=%lu",
+                        g_stats.total_iterations, g_stats.successful_reads, success_rate,
+                        g_stats.serial_errors, g_stats.at_command_errors, g_stats.parse_errors);
         }
 
         // Wait for next interval

@@ -377,6 +377,20 @@ int main(int argc, char *argv[])
                 }
             }
 
+            // Show statistics from kernel module
+            if (access("/sys/kernel/quectel_rm520n/stats", R_OK) == 0) {
+                FILE *stats_fp = fopen("/sys/kernel/quectel_rm520n/stats", "r");
+                if (stats_fp) {
+                    char stats_line[256];
+                    printf("\nKernel module statistics:\n");
+                    while (fgets(stats_line, sizeof(stats_line), stats_fp) != NULL) {
+                        stats_line[strcspn(stats_line, "\n")] = '\0';
+                        printf("  %s\n", stats_line);
+                    }
+                    fclose(stats_fp);
+                }
+            }
+
             // Show kernel modules status
             FILE *modules = fopen("/proc/modules", "r");
             if (modules) {
