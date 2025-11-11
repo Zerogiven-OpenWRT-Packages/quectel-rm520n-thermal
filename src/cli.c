@@ -87,9 +87,9 @@ int cli_mode(char *temp_str, size_t temp_size)
         if (access("/sys/kernel/quectel_rm520n/temp", R_OK) == 0) {
             FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n/temp", "r");
             if (temp_fp) {
-                if (fgets(temp_str, sizeof(temp_str), temp_fp) != NULL) {
+                if (fgets(temp_str, temp_size, temp_fp) != NULL) {
                     temp_str[strcspn(temp_str, "\n")] = '\0';
-                    
+
                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
                         status = "ok";
                         logging_debug("Temperature read from main sysfs interface: '%s'", temp_str);
@@ -138,9 +138,9 @@ int cli_mode(char *temp_str, size_t temp_size)
                             // Found the hwmon device, read temperature
                             FILE *temp_fp = fopen(temp_path, "r");
                             if (temp_fp) {
-                                if (fgets(temp_str, sizeof(temp_str), temp_fp) != NULL) {
+                                if (fgets(temp_str, temp_size, temp_fp) != NULL) {
                                     temp_str[strcspn(temp_str, "\n")] = '\0';
-                                    
+
                                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
                                         status = "ok";
                                         logging_debug("Temperature read from hwmon: '%s'", temp_str);
@@ -191,15 +191,15 @@ int cli_mode(char *temp_str, size_t temp_size)
             
             // Convert to millidegrees (same format as daemon output)
             int best_temp_mdeg = best_temp * 1000;
-            if (snprintf(temp_str, sizeof(temp_str), "%d", best_temp_mdeg) >= sizeof(temp_str)) {
+            if (snprintf(temp_str, temp_size, "%d", best_temp_mdeg) >= (int)temp_size) {
                 logging_warning("Temperature string truncated, using fallback: N/A");
-                SAFE_STRNCPY(temp_str, "N/A", sizeof(temp_str));
+                SAFE_STRNCPY(temp_str, "N/A", temp_size);
             }
-            logging_debug("Temperature parsed successfully: %s°C (modem: %d°C, AP: %d°C, PA: %d°C)", 
+            logging_debug("Temperature parsed successfully: %s°C (modem: %d°C, AP: %d°C, PA: %d°C)",
                          temp_str, modem_temp, ap_temp, pa_temp);
         } else {
             status = "Error: Invalid response format";
-            SAFE_STRNCPY(temp_str, "N/A", sizeof(temp_str));
+            SAFE_STRNCPY(temp_str, "N/A", temp_size);
             logging_debug("Temperature parsing failed: invalid response format");
         }
     } else {
