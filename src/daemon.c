@@ -25,6 +25,7 @@
 #include "include/temperature.h"
 #include "include/system.h"
 #include "include/uci_config.h"
+#include "include/prometheus.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \
@@ -55,6 +56,90 @@ typedef struct {
 } daemon_stats_t;
 
 static daemon_stats_t g_stats = {0};
+
+/* Temperature alert state tracking */
+typedef struct {
+    bool alert_active;           /* True if currently in alert state */
+    time_t last_alert_time;      /* Timestamp of last alert */
+    int last_alerted_temp;       /* Temperature when last alerted */
+} alert_state_t;
+
+static alert_state_t g_alert_state = {0};
+
+/* Daemon start time for uptime calculation */
+static time_t g_daemon_start_time = 0;
+
+/* ============================================================================
+ * TEMPERATURE ALERTING
+ * ============================================================================ */
+
+/**
+ * check_temperature_alerts - Check temperature against thresholds and alert
+ * @temp_mdeg: Current temperature in millidegrees Celsius
+ *
+ * Monitors temperature against critical threshold and generates syslog alerts
+ * when breaches occur. Implements hysteresis to prevent alert spam:
+ * - Alerts when temperature rises above temp_crit
+ * - Alerts when temperature falls back below temp_crit (recovery)
+ * - Minimum 60 second interval between repeated alerts at same level
+ */
+static void check_temperature_alerts(int temp_mdeg)
+{
+    // Read current critical threshold from sysfs
+    int temp_crit_mdeg = DEFAULT_TEMP_CRIT;
+    FILE *crit_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_crit", "r");
+    if (crit_fp) {
+        char buf[32];
+        if (fgets(buf, sizeof(buf), crit_fp) != NULL) {
+            temp_crit_mdeg = atoi(buf);
+        }
+        fclose(crit_fp);
+    }
+
+    time_t now = time(NULL);
+    int temp_celsius = temp_mdeg / 1000;
+    int temp_crit_celsius = temp_crit_mdeg / 1000;
+    bool threshold_breached = (temp_mdeg >= temp_crit_mdeg);
+
+    // Check if we're entering alert state (temperature rising above threshold)
+    if (threshold_breached && !g_alert_state.alert_active) {
+        logging_error("CRITICAL TEMPERATURE ALERT: Modem temperature %d°C has exceeded critical threshold %d°C",
+                     temp_celsius, temp_crit_celsius);
+        syslog(LOG_CRIT, "CRITICAL TEMPERATURE ALERT: Modem temperature %d°C has exceeded critical threshold %d°C",
+               temp_celsius, temp_crit_celsius);
+
+        g_alert_state.alert_active = true;
+        g_alert_state.last_alert_time = now;
+        g_alert_state.last_alerted_temp = temp_mdeg;
+    }
+    // Check if we're exiting alert state (temperature falling below threshold)
+    else if (!threshold_breached && g_alert_state.alert_active) {
+        logging_info("Temperature recovery: Modem temperature %d°C has fallen below critical threshold %d°C",
+                    temp_celsius, temp_crit_celsius);
+        syslog(LOG_WARNING, "Temperature recovery: Modem temperature %d°C has fallen below critical threshold %d°C",
+               temp_celsius, temp_crit_celsius);
+
+        g_alert_state.alert_active = false;
+        g_alert_state.last_alert_time = now;
+        g_alert_state.last_alerted_temp = temp_mdeg;
+    }
+    // If still in alert state and temperature increased significantly, re-alert
+    else if (threshold_breached && g_alert_state.alert_active) {
+        // Re-alert if temperature increased by 5°C or 60 seconds passed
+        int temp_delta_mdeg = temp_mdeg - g_alert_state.last_alerted_temp;
+        time_t time_delta = now - g_alert_state.last_alert_time;
+
+        if (temp_delta_mdeg >= 5000 || time_delta >= 60) {
+            logging_error("CRITICAL TEMPERATURE CONTINUES: Modem temperature %d°C (threshold: %d°C)",
+                         temp_celsius, temp_crit_celsius);
+            syslog(LOG_CRIT, "CRITICAL TEMPERATURE CONTINUES: Modem temperature %d°C (threshold: %d°C)",
+                   temp_celsius, temp_crit_celsius);
+
+            g_alert_state.last_alert_time = now;
+            g_alert_state.last_alerted_temp = temp_mdeg;
+        }
+    }
+}
 
 /* ============================================================================
  * CLEANUP FUNCTIONS
@@ -197,8 +282,27 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
 
+    // Record daemon start time for uptime metrics
+    g_daemon_start_time = time(NULL);
+
     logging_info("Daemon started successfully");
-    
+
+    // Initialize Prometheus metrics exporter if enabled
+    prometheus_config_t prom_config = {
+        .enabled = config.prometheus_enabled,
+        .port = config.prometheus_port,
+        .server_fd = -1
+    };
+
+    if (prom_config.enabled) {
+        if (prometheus_init(&prom_config) == 0) {
+            logging_info("Prometheus metrics export enabled on port %d", prom_config.port);
+        } else {
+            logging_warning("Failed to initialize Prometheus metrics export, continuing without metrics");
+            prom_config.enabled = false;
+        }
+    }
+
     // Check kernel module status
     logging_info("Checking kernel module status...");
     FILE *modules_fp = fopen("/proc/modules", "r");
@@ -394,6 +498,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     // Increment successful read counter
                     g_stats.successful_reads++;
 
+                    // Check for temperature alerts
+                    check_temperature_alerts(best_temp_mdeg);
+
                     // Write to main sysfs interface (primary interface for CLI tool)
                     if (access("/sys/kernel/quectel_rm520n_thermal/temp", W_OK) == 0) {
                         FILE *fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "w");
@@ -557,6 +664,63 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         g_stats.serial_errors, g_stats.at_command_errors, g_stats.parse_errors);
         }
 
+        // Handle Prometheus metrics requests (non-blocking)
+        if (prom_config.enabled) {
+            // Read current temperature from sysfs for metrics
+            int current_temp_mdeg = DEFAULT_TEMP_DEFAULT * 1000;
+            FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "r");
+            if (temp_fp) {
+                char temp_buf[32];
+                if (fgets(temp_buf, sizeof(temp_buf), temp_fp) != NULL) {
+                    current_temp_mdeg = atoi(temp_buf);
+                }
+                fclose(temp_fp);
+            }
+
+            // Read thresholds from sysfs
+            int temp_min_mdeg = DEFAULT_TEMP_MIN;
+            int temp_max_mdeg = DEFAULT_TEMP_MAX;
+            int temp_crit_mdeg = DEFAULT_TEMP_CRIT;
+
+            FILE *min_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_min", "r");
+            if (min_fp) {
+                char buf[32];
+                if (fgets(buf, sizeof(buf), min_fp) != NULL) temp_min_mdeg = atoi(buf);
+                fclose(min_fp);
+            }
+
+            FILE *max_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_max", "r");
+            if (max_fp) {
+                char buf[32];
+                if (fgets(buf, sizeof(buf), max_fp) != NULL) temp_max_mdeg = atoi(buf);
+                fclose(max_fp);
+            }
+
+            FILE *crit_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_crit", "r");
+            if (crit_fp) {
+                char buf[32];
+                if (fgets(buf, sizeof(buf), crit_fp) != NULL) temp_crit_mdeg = atoi(buf);
+                fclose(crit_fp);
+            }
+
+            // Build metrics structure
+            prometheus_metrics_t metrics = {
+                .temperature_celsius = current_temp_mdeg / 1000,
+                .temp_min_celsius = temp_min_mdeg / 1000,
+                .temp_max_celsius = temp_max_mdeg / 1000,
+                .temp_crit_celsius = temp_crit_mdeg / 1000,
+                .iterations_total = g_stats.total_iterations,
+                .reads_success = g_stats.successful_reads,
+                .errors_serial = g_stats.serial_errors,
+                .errors_at_cmd = g_stats.at_command_errors,
+                .errors_parse = g_stats.parse_errors,
+                .uptime_seconds = (unsigned long)(time(NULL) - g_daemon_start_time),
+                .alert_active = g_alert_state.alert_active
+            };
+
+            prometheus_handle_request(&prom_config, &metrics);
+        }
+
         // Wait for next interval (use config instead of loop_config which is out of scope)
         sleep(config.interval);
     }
@@ -566,7 +730,10 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         close(g_serial_fd);
         g_serial_fd = -1;
     }
-    
+
+    // Shutdown Prometheus if enabled
+    prometheus_shutdown(&prom_config);
+
     release_daemon_lock();
     logging_info("Daemon shutdown complete");
     return 0;
