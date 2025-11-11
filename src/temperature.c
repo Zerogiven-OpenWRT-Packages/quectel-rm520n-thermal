@@ -149,7 +149,7 @@ int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int
     
     /* Extract temperatures using configurable prefixes */
     if (modem_temp && modem_prefix) {
-        char pattern[128];
+        char pattern[PATTERN_LEN];
         snprintf(pattern, sizeof(pattern), "\"%s\"", modem_prefix);
         if (extract_single_temperature(response, pattern, strlen(pattern), modem_temp)) {
             logging_debug("Extracted modem temperature: %d°C", *modem_temp);
@@ -157,7 +157,7 @@ int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int
     }
     
     if (ap_temp && ap_prefix) {
-        char pattern[128];
+        char pattern[PATTERN_LEN];
         snprintf(pattern, sizeof(pattern), "\"%s\"", ap_prefix);
         if (extract_single_temperature(response, pattern, strlen(pattern), ap_temp)) {
             logging_debug("Extracted AP temperature: %d°C", *ap_temp);
@@ -165,7 +165,7 @@ int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int
     }
     
     if (pa_temp && pa_prefix) {
-        char pattern[128];
+        char pattern[PATTERN_LEN];
         snprintf(pattern, sizeof(pattern), "\"%s\"", pa_prefix);
         if (extract_single_temperature(response, pattern, strlen(pattern), pa_temp)) {
             logging_debug("Extracted PA temperature: %d°C", *pa_temp);

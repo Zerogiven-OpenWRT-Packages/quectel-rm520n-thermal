@@ -114,8 +114,8 @@ int cli_mode(char *temp_str, size_t temp_size)
                 if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                     continue;
                     
-                char name_path[256];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                char temp_path[256];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
+                char name_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
+                char temp_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
                 if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
                     logging_warning("HWMON name path truncated, device skipped: %s", entry->d_name);
                     continue;
@@ -127,7 +127,7 @@ int cli_mode(char *temp_str, size_t temp_size)
                 
                 FILE *name_fp = fopen(name_path, "r");
                 if (name_fp) {
-                    char dev_name[32];  // Reduced from 64 - device names are typically short
+                    char dev_name[SMALL_BUFFER_LEN];  // Reduced from 64 - device names are typically short
                     if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
                         dev_name[strcspn(dev_name, "\n")] = '\0';
                         logging_debug("Checking hwmon device: %s (name: '%s')", entry->d_name, dev_name);

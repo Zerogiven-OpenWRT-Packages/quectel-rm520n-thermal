@@ -72,4 +72,18 @@
 #define TEMP_ABSOLUTE_MIN    -40000   /* -40°C in m°C (hardware limit) */
 #define TEMP_ABSOLUTE_MAX    125000   /* 125°C in m°C (hardware limit) */
 
+/* ============================================================================
+ * BUFFER SIZE CONSTANTS
+ * ============================================================================ */
+
+/* Path and string buffer sizes */
+#define PATH_MAX_LEN         256      /* Maximum path length for sysfs/file paths */
+#define DEVICE_NAME_LEN      64       /* Maximum device name length */
+#define SMALL_BUFFER_LEN     32       /* Small buffer for short strings/numbers */
+#define CONFIG_STRING_LEN    64       /* Configuration string length (serial_port, prefixes, etc.) */
+#define COMMAND_BUFFER_LEN   256      /* Command string buffer */
+#define PLATFORM_PATH_LEN    128      /* Platform device path length */
+#define MODULE_LINE_LEN      128      /* Module info line length */
+#define PATTERN_LEN          128      /* Temperature pattern string length */
+
 #endif /* KMOD_COMMON_H */

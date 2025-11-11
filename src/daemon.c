@@ -101,14 +101,14 @@ static int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
-        char name_path[256];
+        char name_path[PATH_MAX_LEN];
         if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
             continue;
         }
 
         FILE *name_fp = fopen(name_path, "r");
         if (name_fp) {
-            char dev_name[64];
+            char dev_name[DEVICE_NAME_LEN];
             if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
                 dev_name[strcspn(dev_name, "\n")] = '\0';
                 if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
@@ -186,7 +186,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     logging_info("Checking kernel module status...");
     FILE *modules_fp = fopen("/proc/modules", "r");
     if (modules_fp) {
-        char line[128];  // Reduced from 256 - module lines are typically short
+        char line[MODULE_LINE_LEN];  // Reduced from 256 - module lines are typically short
         while (fgets(line, sizeof(line), modules_fp)) {
             if (strstr(line, "quectel_rm520n_temp")) {
                 logging_info("Kernel module loaded: %s", line);
@@ -214,7 +214,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         struct dirent *entry;
         while ((entry = readdir(thermal_dir)) != NULL) {
             if (strncmp(entry->d_name, "thermal_zone", 12) == 0) {
-                char type_path[256];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
+                char type_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
                 if (snprintf(type_path, sizeof(type_path), "/sys/devices/virtual/thermal/%s/type", entry->d_name) >= sizeof(type_path)) {
                     logging_warning("Thermal zone type path truncated, zone skipped: %s", entry->d_name);
                     continue;
@@ -222,7 +222,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 
                 FILE *type_fp = fopen(type_path, "r");
                 if (type_fp) {
-                    char zone_type[64];
+                    char zone_type[DEVICE_NAME_LEN];
                     if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
                         zone_type[strcspn(zone_type, "\n")] = '\0';
                         logging_info("Thermal zone found: %s (type: %s)", entry->d_name, zone_type);
@@ -253,7 +253,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     g_serial_fd = -1;  // Use global for emergency cleanup access
 
     // Find hwmon path once (cached for performance)
-    char hwmon_path[256] = {0};
+    char hwmon_path[PATH_MAX_LEN] = {0};
     int hwmon_available = (find_quectel_hwmon_path(hwmon_path, sizeof(hwmon_path)) == 0);
     if (hwmon_available) {
         logging_info("Hwmon interface available: %s", hwmon_path);
@@ -399,7 +399,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     }
                     
                     // Write to platform device interface if available
-                    char platform_path[128];  // Reduced from 256 - platform paths are short
+                    char platform_path[PLATFORM_PATH_LEN];  // Reduced from 256 - platform paths are short
                     if (snprintf(platform_path, sizeof(platform_path), "/sys/devices/platform/quectel_rm520n_temp/cur_temp") >= sizeof(platform_path)) {
                         logging_warning("Platform path truncated, device write skipped");
                     } else {
@@ -438,8 +438,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         struct dirent *entry;
                         while ((entry = readdir(thermal_dir)) != NULL) {
                             if (strncmp(entry->d_name, "thermal_zone", 12) == 0) {
-                                char type_path[256];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                                char temp_path[256];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
+                                char type_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
+                                char temp_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
                                 if (snprintf(type_path, sizeof(type_path), "/sys/devices/virtual/thermal/%s/type", entry->d_name) >= sizeof(type_path)) {
                                     logging_warning("Thermal zone type path truncated, skipping: %s", entry->d_name);
                                     continue;
@@ -452,7 +452,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                                 // Check if this thermal zone is for our modem
                                 FILE *type_fp = fopen(type_path, "r");
                                 if (type_fp) {
-                                    char zone_type[64];
+                                    char zone_type[DEVICE_NAME_LEN];
                                     if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
                                         zone_type[strcspn(zone_type, "\n")] = '\0';
                                         

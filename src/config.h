@@ -4,7 +4,7 @@
  * @author Christopher Sollinger
  * @date 2025
  * @license GPL
- * 
+ *
  * This header provides common configuration management functions used by
  * both the daemon and CLI tools for reading UCI settings.
  */
@@ -13,17 +13,18 @@
 #define CONFIG_H
 
 #include <termios.h>
+#include "common.h"
 
 /* Configuration structure */
 typedef struct {
-    char serial_port[64];
+    char serial_port[CONFIG_STRING_LEN];
     int interval;
     speed_t baud_rate;
-    char error_value[64];
+    char error_value[CONFIG_STRING_LEN];
     int debug;
-    char temp_modem_prefix[64];
-    char temp_ap_prefix[64];
-    char temp_pa_prefix[64];
+    char temp_modem_prefix[CONFIG_STRING_LEN];
+    char temp_ap_prefix[CONFIG_STRING_LEN];
+    char temp_pa_prefix[CONFIG_STRING_LEN];
 } config_t;
 
 /* Function declarations */
