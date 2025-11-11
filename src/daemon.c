@@ -527,11 +527,11 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         closedir(thermal_dir);
                     }
                 }
-            } else {
-                // Temperature parsing failed
-                g_stats.parse_errors++;
-                logging_warning("Failed to parse temperature from AT response");
-            }
+                } else {
+                    // Temperature parsing failed
+                    g_stats.parse_errors++;
+                    logging_warning("Failed to parse temperature from AT response");
+                }
             } else {
                 // AT command failed
                 g_stats.at_command_errors++;
@@ -558,8 +558,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         g_stats.serial_errors, g_stats.at_command_errors, g_stats.parse_errors);
         }
 
-        // Wait for next interval
-        sleep(loop_config.interval);
+        // Wait for next interval (use config instead of loop_config which is out of scope)
+        sleep(config.interval);
     }
 
     // Cleanup
