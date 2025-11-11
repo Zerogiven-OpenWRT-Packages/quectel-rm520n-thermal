@@ -12,7 +12,7 @@ LIBS ?= -luci -lsysfs
 
 # Userspace program
 TARGET = quectel_rm520n_temp
-SRCS   = main.c serial.c config.c logging.c temperature.c ui.c system.c cli.c daemon.c uci_config.c prometheus.c
+SRCS   = main.c serial.c config.c logging.c temperature.c ui.c system.c cli.c daemon.c uci_config.c
 OBJS   = $(SRCS:.c=.o)
 
 all: $(TARGET)

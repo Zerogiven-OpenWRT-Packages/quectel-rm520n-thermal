@@ -26,8 +26,6 @@ typedef struct {
     char temp_modem_prefix[CONFIG_STRING_LEN];
     char temp_ap_prefix[CONFIG_STRING_LEN];
     char temp_pa_prefix[CONFIG_STRING_LEN];
-    int prometheus_enabled;
-    int prometheus_port;
 } config_t;
 
 /* Function declarations */
