@@ -60,6 +60,8 @@ define Package/$(PKG_NAME)/description
    - UCI-based configuration with automatic service reload
    - Configurable temperature parsing prefixes for different modem models
    - Temperature output in millidegrees (default) or degrees Celsius
+   - Temperature alerting via syslog on critical threshold breach
+   - Prometheus metrics collector for prometheus-node-exporter-lua (optional)
 endef
 
 # --- Build/Prepare ---
@@ -130,6 +132,10 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/$(BINARY_NAME) \
 	               $(1)/usr/bin/$(BINARY_NAME)
+
+	$(INSTALL_DIR) $(1)/usr/lib/lua/prometheus-collectors
+	$(INSTALL_DATA) ./files/usr/lib/lua/prometheus-collectors/quectel_modem.lua \
+	                $(1)/usr/lib/lua/prometheus-collectors/quectel_modem.lua
 
 endef
 
