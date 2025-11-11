@@ -10,7 +10,6 @@ include $(INCLUDE_DIR)/kernel.mk
 PKG_NAME    := quectel-rm520n-thermal
 PKG_VERSION := 1.0.0
 PKG_RELEASE := 1
-BINARY_NAME := quectel_rm520n_temp
 
 PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
@@ -18,10 +17,12 @@ PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
 PKG_BUILD_DEPENDS := uci sysfsutils
 
+BINARY_NAME := quectel_rm520n_temp
+
 include $(INCLUDE_DIR)/package.mk
 
 # --- Kernel package definition ---
-define KernelPackage/quectel-rm520n-thermal
+define KernelPackage/$(PKG_NAME)
   SUBMENU:=Other modules
   TITLE:=Quectel RM520N Thermal Management Kernel Modules
   FILES:= \
@@ -33,14 +34,14 @@ define KernelPackage/quectel-rm520n-thermal
   PKGARCH:=all
 endef
 
-define KernelPackage/quectel-rm520n-thermal/description
+define KernelPackage/$(PKG_NAME)/description
   Kernel modules for monitoring and managing the Quectel RM520N modem temperature.
   Provides sysfs access, virtual thermal sensors, and hwmon integration.
   Includes configurable temperature thresholds and millidegree precision.
 endef
 
 # --- Userspace package definition ---
-define Package/quectel-rm520n-thermal
+define Package/$(PKG_NAME)
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Quectel RM520N Thermal Management Tools
@@ -50,7 +51,7 @@ define Package/quectel-rm520n-thermal
   PKGARCH:=all
 endef
 
-define Package/quectel-rm520n-thermal/description
+define Package/$(PKG_NAME)/description
   Tools and configuration for managing the Quectel RM520N modem temperature.
   Includes:
    - Kernel modules for sysfs, thermal sensors, and hwmon integration
@@ -99,14 +100,10 @@ define Build/Compile
 		-DPKG_LICENSE=\"$(PKG_LICENSE)\" \
 		-DPKG_COPYRIGHT_YEAR=\"$(PKG_COPYRIGHT_YEAR)\" \
 		$(TARGET_LDFLAGS) -luci -lsysfs
-
-
-
-
 endef
 
 # --- Kernel install (kernel-specific package) ---
-define KernelPackage/quectel-rm520n-thermal/install
+define KernelPackage/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/lib/modules/$(LINUX_VERSION)
 
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp.ko \
@@ -120,13 +117,13 @@ define KernelPackage/quectel-rm520n-thermal/install
 endef
 
 # --- Userspace package install ---
-define Package/quectel-rm520n-thermal/install
+define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/etc/config/quectel_rm520n_thermal \
 	                $(1)/etc/config/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/etc/init.d/quectel_rm520n_thermal \
+	$(INSTALL_BIN) ./files/etc/init.d/quectel_rm520n_thermal.init \
 	               $(1)/etc/init.d/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/usr/bin
@@ -135,13 +132,6 @@ define Package/quectel-rm520n-thermal/install
 
 endef
 
-define Package/quectel-rm520n-thermal/postinst
-#!/bin/sh
-/etc/init.d/quectel_rm520n_thermal enable
-echo "Quectel RM520N Thermal Management Service installed and enabled."
-exit 0
-endef
-
 # --- Evaluation ---
-$(eval $(call KernelPackage,quectel-rm520n-thermal))
-$(eval $(call BuildPackage,quectel-rm520n-thermal))
+$(eval $(call KernelPackage,$(PKG_NAME)))
+$(eval $(call BuildPackage,$(PKG_NAME)))
