@@ -67,7 +67,8 @@ void signal_handler(int sig);
 
 /**
  * Global shutdown flag for signal handling
+ * Using sig_atomic_t for signal-safe access
  */
-extern volatile bool shutdown_requested;
+extern volatile sig_atomic_t shutdown_requested;
 
 #endif /* SYSTEM_H */

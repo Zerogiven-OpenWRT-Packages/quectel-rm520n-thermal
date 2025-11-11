@@ -48,18 +48,18 @@ extern config_t config;
 
 /**
  * Daemon mode - background temperature monitoring
- * 
+ *
  * Implements the daemon service for continuous temperature monitoring.
  * Reads modem temperatures via AT commands and writes to kernel interfaces
  * (hwmon, thermal zones) at regular intervals.
- * 
+ *
  * Includes safety checks for thermal zones and automatic kernel module loading.
  * Following clig.dev guidelines for service robustness and graceful shutdown.
- * 
+ *
  * @param shutdown_flag Pointer to shutdown flag for graceful termination
  * @return 0 on success, 1 on error, 3 if daemon already running
  */
-int daemon_mode(volatile bool *shutdown_flag)
+int daemon_mode(volatile sig_atomic_t *shutdown_flag)
 {
     // Check if daemon is already running
     if (check_daemon_running()) {

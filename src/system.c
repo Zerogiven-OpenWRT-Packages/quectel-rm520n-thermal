@@ -138,6 +138,6 @@ void signal_handler(int sig)
 {
     if (sig == SIGTERM || sig == SIGINT) {
         logging_info("Received signal %d, initiating graceful shutdown", sig);
-        shutdown_requested = true; // Set the global shutdown flag
+        shutdown_requested = 1; // Set the global shutdown flag
     }
 }

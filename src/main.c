@@ -92,7 +92,7 @@ static bool json_output = false;
 bool verbose_output = false;  /* Shared with UI module */
 static bool celsius_output = false;
 static bool watch_mode = false;
-volatile bool shutdown_requested = false;
+volatile sig_atomic_t shutdown_requested = 0;
 
 /* ============================================================================
  * FUNCTION PROTOTYPES
