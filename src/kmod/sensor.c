@@ -22,7 +22,7 @@
 #include <linux/version.h>
 #include <linux/string.h>
 
-#include "../common.h"
+#include "../include/common.h"
 
 /* 
  * The THERMAL_EVENT_UNSPECIFIED enum was introduced in kernel 5.17

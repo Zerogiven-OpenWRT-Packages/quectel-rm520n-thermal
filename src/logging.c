@@ -14,7 +14,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <stdbool.h>
-#include "logging.h"
+#include "include/logging.h"
 
 /* Global logging configuration */
 static logging_config_t g_log_config = {

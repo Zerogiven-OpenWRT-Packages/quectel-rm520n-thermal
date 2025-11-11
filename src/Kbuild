@@ -1,5 +1,9 @@
 # Kernel module build configuration for Quectel RM520N thermal management
 # This file defines the kernel modules to be built
+
+# Add include directory for kernel module compilation
+ccflags-y += -I$(src)/include
+
 obj-m += kmod/quectel_rm520n_temp.o
 obj-m += kmod/quectel_rm520n_temp_sensor.o
 obj-m += kmod/quectel_rm520n_temp_sensor_hwmon.o

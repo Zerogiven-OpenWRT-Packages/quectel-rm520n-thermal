@@ -15,8 +15,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <uci.h>
-#include "config.h"
-#include "logging.h"
+#include "include/config.h"
+#include "include/logging.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \

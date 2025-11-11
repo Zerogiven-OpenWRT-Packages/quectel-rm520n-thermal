@@ -17,7 +17,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <time.h>
-#include "serial.h"
+#include "include/serial.h"
 
 /* Timeout for AT command responses */
 #define AT_TIMEOUT_SEC 5

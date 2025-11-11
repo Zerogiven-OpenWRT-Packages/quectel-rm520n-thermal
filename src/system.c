@@ -22,8 +22,8 @@
 #include <sys/wait.h>
 #include <sys/file.h>
 #include <dirent.h>
-#include "logging.h"
-#include "system.h"
+#include "include/logging.h"
+#include "include/system.h"
 
 /* ============================================================================
  * CONSTANTS & CONFIGURATION

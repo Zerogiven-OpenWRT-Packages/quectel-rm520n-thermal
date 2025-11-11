@@ -15,11 +15,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
-#include "logging.h"
-#include "config.h"
-#include "serial.h"
-#include "temperature.h"
-#include "system.h"
+#include "include/logging.h"
+#include "include/config.h"
+#include "include/serial.h"
+#include "include/temperature.h"
+#include "include/system.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \

@@ -7,7 +7,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 # Compiler + flags for userspace
 CC ?= gcc
 CFLAGS ?= -O2 -Wall
-CFLAGS += -Wall -Wextra
+CFLAGS += -Wall -Wextra -Iinclude
 LIBS ?= -luci -lsysfs
 
 # Userspace program

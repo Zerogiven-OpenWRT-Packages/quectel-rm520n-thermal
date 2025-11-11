@@ -55,22 +55,22 @@
 #include <getopt.h>
 
 /* Project-specific includes */
-#include "serial.h"
-#include "config.h"
-#include "logging.h"
-#include "common.h"
-#include "temperature.h"
-#include "ui.h"
-#include "system.h"
-#include "cli.h"
-#include "daemon.h"
+#include "include/serial.h"
+#include "include/config.h"
+#include "include/logging.h"
+#include "include/common.h"
+#include "include/temperature.h"
+#include "include/ui.h"
+#include "include/system.h"
+#include "include/cli.h"
+#include "include/daemon.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \
     strncpy(dst, src, size - 1); \
     dst[size - 1] = '\0'; \
 } while(0)
-#include "uci_config.h"
+#include "include/uci_config.h"
 
 /* ============================================================================
  * CONSTANTS & CONFIGURATION

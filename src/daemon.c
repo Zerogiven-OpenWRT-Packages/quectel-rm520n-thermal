@@ -18,13 +18,13 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <time.h>
-#include "logging.h"
-#include "config.h"
-#include "common.h"
-#include "serial.h"
-#include "temperature.h"
-#include "system.h"
-#include "uci_config.h"
+#include "include/logging.h"
+#include "include/config.h"
+#include "include/common.h"
+#include "include/serial.h"
+#include "include/temperature.h"
+#include "include/system.h"
+#include "include/uci_config.h"
 
 /* Helper macro for safe string copying with null termination */
 #define SAFE_STRNCPY(dst, src, size) do { \

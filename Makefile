@@ -72,7 +72,8 @@ endef
 define Build/Compile
   # 1) Kernel modules via Kbuild
 	$(MAKE) $(KERNEL_MAKE_FLAGS) -C $(LINUX_DIR) M=$(PKG_BUILD_DIR) modules \
-		EXTRA_CFLAGS="-DPKG_NAME=\\\"$(PKG_NAME)\\\" \
+		EXTRA_CFLAGS="-I$(PKG_BUILD_DIR)/include \
+		              -DPKG_NAME=\\\"$(PKG_NAME)\\\" \
 		              -DBINARY_NAME=\\\"$(BINARY_NAME)\\\" \
 		              -DPKG_TAG=\\\"$(PKG_VERSION)-r$(PKG_RELEASE)\\\" \
 		              -DPKG_MAINTAINER=\\\"$(PKG_MAINTAINER)\\\" \
@@ -82,7 +83,7 @@ define Build/Compile
 		CROSS_COMPILE="$(TARGET_CROSS)"
 
   # 2) Combined daemon and CLI tool with UCI config
-	$(TARGET_CC) $(TARGET_CFLAGS) -o $(PKG_BUILD_DIR)/$(BINARY_NAME) \
+	$(TARGET_CC) $(TARGET_CFLAGS) -I$(PKG_BUILD_DIR)/include -o $(PKG_BUILD_DIR)/$(BINARY_NAME) \
 		$(PKG_BUILD_DIR)/main.c \
 		$(PKG_BUILD_DIR)/serial.c \
 		$(PKG_BUILD_DIR)/config.c \

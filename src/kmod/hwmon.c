@@ -27,7 +27,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 
-#include "../common.h"
+#include "../include/common.h"
 
 /**
  * read_sysfs_value - Helper function to read integer values from sysfs

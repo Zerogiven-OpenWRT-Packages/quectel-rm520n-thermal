@@ -12,8 +12,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "logging.h"
-#include "common.h"
+#include "include/logging.h"
+#include "include/common.h"
 
 /* External variables from main.c */
 extern bool verbose_output;

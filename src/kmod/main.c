@@ -19,7 +19,7 @@
 #include <linux/version.h>
 
 /* Package metadata definitions */
-#include "../common.h"
+#include "../include/common.h"
 
 /* Compatibility defines for kernel version differences */
 #ifndef KERNEL_VERSION
