@@ -342,8 +342,63 @@ int main(int argc, char *argv[])
         }
     } else if (strcmp(command, "config") == 0) {
         return uci_config_mode();
+    } else if (strcmp(command, "status") == 0) {
+        // Status command - check daemon running state and show system info
+        int daemon_status = check_daemon_running();
+
+        if (daemon_status == 1) {
+            printf("Status: running\n");
+
+            // Try to read PID
+            FILE *pid_file = fopen("/var/run/quectel_rm520n_temp.pid", "r");
+            if (pid_file) {
+                int pid;
+                if (fscanf(pid_file, "%d", &pid) == 1) {
+                    printf("PID: %d\n", pid);
+                }
+                fclose(pid_file);
+            }
+
+            // Show current temperature if available
+            if (access("/sys/kernel/quectel_rm520n/temp", R_OK) == 0) {
+                FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n/temp", "r");
+                if (temp_fp) {
+                    char temp[SMALL_BUFFER_LEN];
+                    if (fgets(temp, sizeof(temp), temp_fp) != NULL) {
+                        temp[strcspn(temp, "\n")] = '\0';
+                        int temp_mdeg = atoi(temp);
+                        printf("Temperature: %d m°C (%.1f°C)\n", temp_mdeg, temp_mdeg / 1000.0);
+                    }
+                    fclose(temp_fp);
+                }
+            }
+
+            // Show kernel modules status
+            FILE *modules = fopen("/proc/modules", "r");
+            if (modules) {
+                char line[PATH_MAX_LEN];
+                int module_count = 0;
+                while (fgets(line, sizeof(line), modules)) {
+                    if (strstr(line, "quectel_rm520n_temp")) {
+                        module_count++;
+                    }
+                }
+                printf("Kernel modules: %d loaded\n", module_count);
+                fclose(modules);
+            }
+
+            return 0;
+        } else if (daemon_status == 0) {
+            printf("Status: stopped\n");
+            printf("Daemon is not running\n");
+            return 1;
+        } else {
+            printf("Status: error\n");
+            printf("Unable to determine daemon status\n");
+            return 1;
+        }
     } else {
-        fprintf(stderr, "Error: Unknown command '%s'. Valid commands: 'read' (default), 'daemon', or 'config'\n", command);
+        fprintf(stderr, "Error: Unknown command '%s'. Valid commands: 'read' (default), 'daemon', 'config', or 'status'\n", command);
         fprintf(stderr, "Try '%s --help' for more information\n", argv[0]);
         return 2;
     }

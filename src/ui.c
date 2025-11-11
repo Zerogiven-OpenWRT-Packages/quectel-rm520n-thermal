@@ -45,7 +45,8 @@ void print_usage(const char *progname)
     	printf("COMMANDS\n");
 	printf("  read               Read current temperature (CLI mode) [default]\n");
 	printf("  daemon             Start daemon mode (background monitoring)\n");
-	printf("  config             Update kernel module thresholds from UCI config\n\n");
+	printf("  config             Update kernel module thresholds from UCI config\n");
+	printf("  status             Show daemon status and system information\n\n");
     printf("Options:\n");
     printf("  -p, --port PORT    Serial port (default: /dev/ttyUSB2)\n");
     printf("  -b, --baud RATE    Baud rate (default: 115200)\n");
@@ -60,6 +61,7 @@ void print_usage(const char *progname)
 	printf("  %s read               # Read temperature (explicit CLI mode)\n", progname);
 	printf("  %s daemon             # Start daemon mode\n", progname);
 	printf("  %s config             # Update kernel module thresholds\n", progname);
+	printf("  %s status             # Check daemon status\n", progname);
     printf("  %s --json             # Read temperature in JSON format\n", progname);
     printf("  %s --celsius          # Return temperature in degrees Celsius\n", progname);
     printf("  %s --watch            # Continuously monitor temperature\n", progname);
