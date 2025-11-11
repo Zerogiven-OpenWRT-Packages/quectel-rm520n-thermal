@@ -354,49 +354,76 @@ int uci_config_mode(void)
     
     // Read UCI configuration and update if different
     logging_info("Reading UCI configuration...");
-    
-    // Read temp_min
+
+    // Read all temperature thresholds first for validation
+    int uci_temp_min = current_min;
+    int uci_temp_max = current_max;
+    int uci_temp_crit = current_crit;
+    int uci_temp_default = current_default;
+
     if (read_uci_option(UCI_TEMP_MIN, uci_value, sizeof(uci_value)) == 0) {
-        temp_min = celsius_to_millidegrees(uci_value);
-        logging_info("UCI temp_min: %s°C -> %d m°C", uci_value, temp_min);
-        if (temp_min != current_min) {
-            if (write_sysfs_value("temp_min", temp_min) == 0) {
-                updated++;
-            }
-        }
+        uci_temp_min = celsius_to_millidegrees(uci_value);
+        logging_info("UCI temp_min: %s°C -> %d m°C", uci_value, uci_temp_min);
     }
-    
-    // Read temp_max
+
     if (read_uci_option(UCI_TEMP_MAX, uci_value, sizeof(uci_value)) == 0) {
-        temp_max = celsius_to_millidegrees(uci_value);
-        logging_info("UCI temp_max: %s°C -> %d m°C", uci_value, temp_max);
-        if (temp_max != current_max) {
-            if (write_sysfs_value("temp_max", temp_max) == 0) {
-                updated++;
-            }
-        }
+        uci_temp_max = celsius_to_millidegrees(uci_value);
+        logging_info("UCI temp_max: %s°C -> %d m°C", uci_value, uci_temp_max);
     }
-    
-    // Read temp_crit
+
     if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
-        temp_crit = celsius_to_millidegrees(uci_value);
-        logging_info("UCI temp_crit: %s°C -> %d m°C", uci_value, temp_crit);
-        if (temp_crit != current_crit) {
-            if (write_sysfs_value("temp_crit", temp_crit) == 0) {
-                updated++;
-            }
-            logging_info("Updating temp_crit from %d to %d m°C", current_crit, temp_crit);
+        uci_temp_crit = celsius_to_millidegrees(uci_value);
+        logging_info("UCI temp_crit: %s°C -> %d m°C", uci_value, uci_temp_crit);
+    }
+
+    if (read_uci_option(UCI_TEMP_DEFAULT, uci_value, sizeof(uci_value)) == 0) {
+        uci_temp_default = celsius_to_millidegrees(uci_value);
+        logging_info("UCI temp_default: %s°C -> %d m°C", uci_value, uci_temp_default);
+    }
+
+    // Validate temperature thresholds
+    if (uci_temp_min >= uci_temp_max) {
+        logging_error("Invalid UCI config: temp_min (%d m°C) must be less than temp_max (%d m°C)",
+                     uci_temp_min, uci_temp_max);
+        logging_error("Keeping current thresholds unchanged");
+        return 1;
+    }
+
+    if (uci_temp_max >= uci_temp_crit) {
+        logging_error("Invalid UCI config: temp_max (%d m°C) must be less than temp_crit (%d m°C)",
+                     uci_temp_max, uci_temp_crit);
+        logging_error("Keeping current thresholds unchanged");
+        return 1;
+    }
+
+    // Thresholds are valid, now update if different
+    temp_min = uci_temp_min;
+    temp_max = uci_temp_max;
+    temp_crit = uci_temp_crit;
+    temp_default = uci_temp_default;
+
+    if (temp_min != current_min) {
+        if (write_sysfs_value("temp_min", temp_min) == 0) {
+            updated++;
         }
     }
-    
-    // Read temp_default
-    if (read_uci_option(UCI_TEMP_DEFAULT, uci_value, sizeof(uci_value)) == 0) {
-        temp_default = celsius_to_millidegrees(uci_value);
-        logging_info("UCI temp_default: %s°C -> %d m°C", uci_value, temp_default);
-        if (temp_default != current_default) {
-            if (write_sysfs_value("temp_default", temp_default) == 0) {
-                updated++;
-            }
+
+    if (temp_max != current_max) {
+        if (write_sysfs_value("temp_max", temp_max) == 0) {
+            updated++;
+        }
+    }
+
+    if (temp_crit != current_crit) {
+        if (write_sysfs_value("temp_crit", temp_crit) == 0) {
+            updated++;
+        }
+        logging_info("Updating temp_crit from %d to %d m°C", current_crit, temp_crit);
+    }
+
+    if (temp_default != current_default) {
+        if (write_sysfs_value("temp_default", temp_default) == 0) {
+            updated++;
         }
     }
     
