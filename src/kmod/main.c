@@ -6,7 +6,7 @@
  * @license GPL
  * 
  * This kernel module provides a sysfs-based temperature interface,
- * creating /sys/kernel/quectel_rm520n/temp for reading and writing
+ * creating /sys/kernel/quectel_rm520n_thermal/temp for reading and writing
  * temperature values from userspace applications.
  */
 
@@ -422,8 +422,8 @@ static int __init quectel_rm520n_temp_init(void)
 {
     int ret = 0;
     
-    /* Create the sysfs directory "quectel_rm520n" */
-    temp_kobj = kobject_create_and_add("quectel_rm520n", kernel_kobj);
+    /* Create the sysfs directory "quectel_rm520n_thermal" */
+    temp_kobj = kobject_create_and_add("quectel_rm520n_thermal", kernel_kobj);
     if (!temp_kobj) {
         pr_err("Quectel RM520N: Failed to create sysfs kobject\n");
         return -ENOMEM;

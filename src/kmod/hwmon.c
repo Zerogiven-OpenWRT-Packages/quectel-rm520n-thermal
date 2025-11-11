@@ -435,10 +435,10 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
     mutex_init(&data->lock);
 
     /* Read current temperature thresholds from main sysfs interface */
-    int main_temp_min = read_sysfs_value("/sys/kernel/quectel_rm520n/temp_min", DEFAULT_TEMP_MIN);
-    int main_temp_max = read_sysfs_value("/sys/kernel/quectel_rm520n/temp_max", DEFAULT_TEMP_MAX);
-    int main_temp_crit = read_sysfs_value("/sys/kernel/quectel_rm520n/temp_crit", DEFAULT_TEMP_CRIT);
-    int main_temp_default = read_sysfs_value("/sys/kernel/quectel_rm520n/temp_default", DEFAULT_TEMP_DEFAULT);
+    int main_temp_min = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_min", DEFAULT_TEMP_MIN);
+    int main_temp_max = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_max", DEFAULT_TEMP_MAX);
+    int main_temp_crit = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_crit", DEFAULT_TEMP_CRIT);
+    int main_temp_default = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_default", DEFAULT_TEMP_DEFAULT);
     
     /* Set values from main sysfs if available, otherwise use defaults */
     data->temp = main_temp_default;
@@ -456,7 +456,7 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
      * so we don't need conditional compilation for basic registration
      */
     hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
-                                                     "quectel_rm520n",
+                                                     "quectel_rm520n_thermal",
                                                      data,
                                                      quectel_hwmon_groups);
     

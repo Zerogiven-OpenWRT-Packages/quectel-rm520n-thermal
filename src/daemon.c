@@ -122,7 +122,7 @@ static int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
             char dev_name[DEVICE_NAME_LEN];
             if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
                 dev_name[strcspn(dev_name, "\n")] = '\0';
-                if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
+                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
                     fclose(name_fp);
                     if (snprintf(path_buf, buf_size, "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)buf_size) {
                         found = 1;
@@ -395,8 +395,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     g_stats.successful_reads++;
 
                     // Write to main sysfs interface (primary interface for CLI tool)
-                    if (access("/sys/kernel/quectel_rm520n/temp", W_OK) == 0) {
-                        FILE *fp = fopen("/sys/kernel/quectel_rm520n/temp", "w");
+                    if (access("/sys/kernel/quectel_rm520n_thermal/temp", W_OK) == 0) {
+                        FILE *fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "w");
                         if (fp) {
                             fprintf(fp, "%d", best_temp_mdeg);
                             fclose(fp);
@@ -405,7 +405,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                             logging_warning("Failed to open main sysfs interface for writing");
                         }
                     } else {
-                        logging_debug("Main sysfs interface not writable: /sys/kernel/quectel_rm520n/temp");
+                        logging_debug("Main sysfs interface not writable: /sys/kernel/quectel_rm520n_thermal/temp");
                     }
                     
                     // Write to hwmon interface (for system monitoring tools)

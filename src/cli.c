@@ -92,7 +92,7 @@ static int find_cached_hwmon_path(char *path_buf, size_t buf_size)
             char dev_name[DEVICE_NAME_LEN];
             if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
                 dev_name[strcspn(dev_name, "\n")] = '\0';
-                if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
+                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
                     fclose(name_fp);
 
                     // Build temp1_input path
@@ -161,8 +161,8 @@ int cli_mode(char *temp_str, size_t temp_size)
         logging_debug("Daemon is running, attempting to read from daemon interfaces...");
         
         // Try to read from main sysfs interface first (primary interface)
-        if (access("/sys/kernel/quectel_rm520n/temp", R_OK) == 0) {
-            FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n/temp", "r");
+        if (access("/sys/kernel/quectel_rm520n_thermal/temp", R_OK) == 0) {
+            FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "r");
             if (temp_fp) {
                 if (fgets(temp_str, temp_size, temp_fp) != NULL) {
                     temp_str[strcspn(temp_str, "\n")] = '\0';
@@ -178,7 +178,7 @@ int cli_mode(char *temp_str, size_t temp_size)
                 fclose(temp_fp);
             }
         } else {
-            logging_debug("Main sysfs interface not available: /sys/kernel/quectel_rm520n/temp");
+            logging_debug("Main sysfs interface not available: /sys/kernel/quectel_rm520n_thermal/temp");
         }
         
         // Fall back to hwmon interface if main interface not available

@@ -364,8 +364,8 @@ int main(int argc, char *argv[])
             }
 
             // Show current temperature if available
-            if (access("/sys/kernel/quectel_rm520n/temp", R_OK) == 0) {
-                FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n/temp", "r");
+            if (access("/sys/kernel/quectel_rm520n_thermal/temp", R_OK) == 0) {
+                FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "r");
                 if (temp_fp) {
                     char temp[SMALL_BUFFER_LEN];
                     if (fgets(temp, sizeof(temp), temp_fp) != NULL) {
@@ -378,8 +378,8 @@ int main(int argc, char *argv[])
             }
 
             // Show statistics from kernel module
-            if (access("/sys/kernel/quectel_rm520n/stats", R_OK) == 0) {
-                FILE *stats_fp = fopen("/sys/kernel/quectel_rm520n/stats", "r");
+            if (access("/sys/kernel/quectel_rm520n_thermal/stats", R_OK) == 0) {
+                FILE *stats_fp = fopen("/sys/kernel/quectel_rm520n_thermal/stats", "r");
                 if (stats_fp) {
                     char stats_line[256];
                     printf("\nKernel module statistics:\n");
