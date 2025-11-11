@@ -156,9 +156,9 @@ define Package/prometheus-node-exporter-ucode-quectel-modem/description
 endef
 
 define Package/prometheus-node-exporter-ucode-quectel-modem/install
-	$(INSTALL_DIR) $(1)/usr/share/prometheus-node-exporter-ucode
-	$(INSTALL_DATA) ./files/usr/share/prometheus-node-exporter-ucode/quectel_modem.uc \
-		$(1)/usr/share/prometheus-node-exporter-ucode/quectel_modem.uc
+	$(INSTALL_DIR) $(1)/usr/share/ucode/node-exporter/lib
+	$(INSTALL_DATA) ./files/extra/quectel_modem.uc \
+		$(1)/usr/share/ucode/node-exporter/lib/quectel_modem.uc
 endef
 
 # --- Evaluation ---
