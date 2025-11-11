@@ -20,6 +20,7 @@
 
 /* Package metadata definitions */
 #include "../include/common.h"
+#include "../include/kmod_main.h"
 
 /* Compatibility defines for kernel version differences */
 #ifndef KERNEL_VERSION

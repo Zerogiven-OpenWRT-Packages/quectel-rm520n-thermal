@@ -28,6 +28,7 @@
 #include <linux/string.h>
 
 #include "../include/common.h"
+#include "../include/kmod_hwmon.h"
 
 /**
  * read_sysfs_value - Helper function to read integer values from sysfs
@@ -70,27 +71,6 @@ static int read_sysfs_value(const char *path, int default_val)
     
     return result;
 }
-
-/**
- * struct quectel_hwmon_data - Hwmon sensor data structure
- *
- * Stores temperature values and thresholds for the hwmon device.
- * All temperature values are in millidegrees Celsius (m°C).
- * Includes a mutex for thread-safe access to shared data.
- *
- * @temp: Current temperature value
- * @temp_min: Minimum temperature threshold
- * @temp_max: Maximum temperature threshold
- * @temp_crit: Critical temperature threshold
- * @lock: Mutex for thread safety
- */
-struct quectel_hwmon_data {
-    int temp;
-    int temp_min;
-    int temp_max;
-    int temp_crit;
-    struct mutex lock;
-};
 
 /**
  * temp1_input_show - Hwmon read function for current temperature

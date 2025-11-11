@@ -23,8 +23,9 @@
 #include <linux/string.h>
 
 #include "../include/common.h"
+#include "../include/kmod_sensor.h"
 
-/* 
+/*
  * The THERMAL_EVENT_UNSPECIFIED enum was introduced in kernel 5.17
  * For earlier kernels, we define it here to ensure compatibility
  */
