@@ -6,10 +6,12 @@ on:
       openwrt_version:
         description: 'OpenWrt version to test'
         required: true
-        default: '24.10'
+        default: 'both'
         type: choice
         options:
+        - '23.05'
         - '24.10'
+        - 'both'
       verbose:
         description: 'Verbose build output'
         required: false
@@ -18,31 +20,64 @@ on:
 
 jobs:
   build-test:
-    name: Build Test - OpenWrt ${{ matrix.openwrt_version }}
+    name: Build Test - OpenWrt ${{ matrix.openwrt_version }} ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
+          # 24.10
           - openwrt_version: '24.10'
-            arch: 'x86_64-24.10.0'
+            openwrt_build_version: '24.10.3'
+            arch: 'x86_64'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'arm_cortex-a9'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'aarch64_cortex-a53'
+
+          # 23.05
+          - openwrt_version: '23.05'
+            openwrt_build_version: '23.05.6'
+            arch: 'x86_64'
+          - openwrt_version: '23.05'
+            openwrt_build_version: '23.05.6'
+            arch: 'arm_cortex-a9'
+          - openwrt_version: '23.05'
+            openwrt_build_version: '23.05.6'
+            arch: 'aarch64_cortex-a53'
       fail-fast: false
-    
+
     steps:
+      - name: Check if version should be built
+        run: |
+          # Check if this matrix combination should be built
+          if [ "${{ github.event.inputs.openwrt_version }}" != "both" ] && [ "${{ github.event.inputs.openwrt_version }}" != "${{ matrix.openwrt_version }}" ]; then
+            echo "Skipping build: OpenWrt version mismatch (requested: ${{ github.event.inputs.openwrt_version }}, matrix: ${{ matrix.openwrt_version }})"
+            exit 0
+          fi
+
+          echo "Proceeding with build for OpenWrt ${{ matrix.openwrt_version }}"
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        if: "${{ github.event.inputs.openwrt_version == matrix.openwrt_version || github.event.inputs.openwrt_version == 'both' }}"
         with:
-          path: ${{ github.workspace }}/feed/quectel-rm520n-thermal
+          path: ${{ github.workspace }}/feed/gpio-fan-rpm
+          fetch-depth: 0
 
       - name: Create artifacts directory structure
+        if: "${{ github.event.inputs.openwrt_version == matrix.openwrt_version || github.event.inputs.openwrt_version == 'both' }}"
         run: |
           mkdir -p ${{ github.workspace }}/artifacts
 
-      - name: Build OpenWrt ${{ matrix.openwrt_version }} package
-        uses: openwrt/gh-action-sdk@main
+      - name: Build OpenWrt ${{ matrix.openwrt_version }}-${{ matrix.arch }} package
+        uses: openwrt/gh-action-sdk@v9
+        if: "${{ github.event.inputs.openwrt_version == matrix.openwrt_version || github.event.inputs.openwrt_version == 'both' }}"
         env:
-          ARCH: ${{ matrix.arch }}
-          PACKAGES: quectel-rm520n-thermal
-          V: ${{ github.event.inputs.verbose == 'true' && 's' || '0' }}
+          ARCH: ${{ matrix.arch }}-${{ matrix.openwrt_build_version }}
+          PACKAGES: kmod-quectel-rm520n-thermal quectel-rm520n-thermal
+          V: ${{ github.event.inputs.verbose == 'true' && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
 
