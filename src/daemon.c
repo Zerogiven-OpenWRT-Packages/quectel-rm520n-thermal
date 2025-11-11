@@ -526,7 +526,6 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                         }
                         closedir(thermal_dir);
                     }
-                }
                 } else {
                     // Temperature parsing failed
                     g_stats.parse_errors++;
