@@ -94,6 +94,7 @@ define Build/Compile
 		$(PKG_BUILD_DIR)/cli.c \
 		$(PKG_BUILD_DIR)/daemon.c \
 		$(PKG_BUILD_DIR)/uci_config.c \
+		$(PKG_BUILD_DIR)/prometheus.c \
 		-DPKG_NAME=\"$(PKG_NAME)\" \
 		-DBINARY_NAME=\"$(BINARY_NAME)\" \
 		-DPKG_TAG=\"$(PKG_VERSION)-r$(PKG_RELEASE)\" \

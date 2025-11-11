@@ -19,3 +19,7 @@ config quectel_rm520n_thermal 'settings'
 	option temp_modem_prefix 'modem-ambient-usr'
 	option temp_ap_prefix 'cpuss-0-usr'
 	option temp_pa_prefix 'modem-lte-sub6-pa1'
+
+	# Prometheus metrics export
+	option prometheus_enabled '0'
+	option prometheus_port '9101'

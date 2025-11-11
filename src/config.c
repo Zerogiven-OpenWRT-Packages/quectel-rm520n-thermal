@@ -41,6 +41,8 @@ void config_set_defaults(config_t *config)
     strcpy(config->temp_modem_prefix, "modem-ambient-usr");
     strcpy(config->temp_ap_prefix, "cpuss-0-usr");
     strcpy(config->temp_pa_prefix, "modem-lte-sub6-pa1");
+    config->prometheus_enabled = 0;
+    config->prometheus_port = 9101;
 }
 
 /**
@@ -196,6 +198,20 @@ int config_read_uci(config_t *config)
         const char *pa_prefix = uci_lookup_option_string(ctx, section, "temp_pa_prefix");
         if (pa_prefix) {
             SAFE_STRNCPY(config->temp_pa_prefix, pa_prefix, sizeof(config->temp_pa_prefix));
+        }
+
+        // Read Prometheus configuration
+        const char *prom_enabled_str = uci_lookup_option_string(ctx, section, "prometheus_enabled");
+        if (prom_enabled_str) {
+            config->prometheus_enabled = atoi(prom_enabled_str);
+        }
+
+        const char *prom_port_str = uci_lookup_option_string(ctx, section, "prometheus_port");
+        if (prom_port_str) {
+            int port = atoi(prom_port_str);
+            if (port > 0 && port < 65536) {
+                config->prometheus_port = port;
+            }
         }
     } else {
         logging_debug("UCI section 'settings' not found");
