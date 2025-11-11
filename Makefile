@@ -139,6 +139,34 @@ define Package/$(PKG_NAME)/install
 
 endef
 
+# --- Prometheus ucode collector package definition ---
+define Package/prometheus-node-exporter-ucode-quectel-modem
+  SECTION:=utils
+  CATEGORY:=Utilities
+  TITLE:=Prometheus ucode collector for Quectel RM520N modem
+  DEPENDS:=prometheus-node-exporter-ucode +$(PKG_NAME)
+  PKGARCH:=all
+endef
+
+define Package/prometheus-node-exporter-ucode-quectel-modem/description
+  Provides a ucode collector for prometheus-node-exporter-ucode that exports
+  Quectel RM520N modem temperature metrics and daemon statistics.
+
+  Metrics exported:
+   - quectel_modem_temperature_celsius
+   - quectel_modem_temp_{min,max,crit}_celsius
+   - quectel_modem_updates_total
+   - quectel_modem_last_update_timestamp_seconds
+   - quectel_daemon_running
+endef
+
+define Package/prometheus-node-exporter-ucode-quectel-modem/install
+	$(INSTALL_DIR) $(1)/usr/share/prometheus-node-exporter-ucode
+	$(INSTALL_DATA) ./files/usr/share/prometheus-node-exporter-ucode/quectel_modem.uc \
+		$(1)/usr/share/prometheus-node-exporter-ucode/quectel_modem.uc
+endef
+
 # --- Evaluation ---
 $(eval $(call KernelPackage,$(PKG_NAME)))
 $(eval $(call BuildPackage,$(PKG_NAME)))
+$(eval $(call BuildPackage,prometheus-node-exporter-ucode-quectel-modem))
