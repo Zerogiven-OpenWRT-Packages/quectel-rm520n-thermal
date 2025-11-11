@@ -38,6 +38,83 @@ extern config_t config;
 #define AT_COMMAND "AT+QTEMP\r"
 
 /* ============================================================================
+ * HELPER FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * find_cached_hwmon_path - Find and cache hwmon device path
+ * @path_buf: Buffer to store the path
+ * @buf_size: Size of the buffer
+ *
+ * Discovers the hwmon device path for quectel_rm520n and caches the result
+ * for subsequent calls to avoid repeated directory scans.
+ *
+ * @return 0 on success, -1 on failure
+ */
+static int find_cached_hwmon_path(char *path_buf, size_t buf_size)
+{
+    static char cached_path[PATH_MAX_LEN] = {0};
+    static int cache_valid = 0;
+
+    // Return cached path if available
+    if (cache_valid && cached_path[0] != '\0') {
+        if (access(cached_path, R_OK) == 0) {
+            strncpy(path_buf, cached_path, buf_size - 1);
+            path_buf[buf_size - 1] = '\0';
+            logging_debug("Using cached hwmon path: %s", cached_path);
+            return 0;
+        } else {
+            // Cached path no longer valid, invalidate cache
+            logging_debug("Cached hwmon path no longer accessible, rescanning");
+            cache_valid = 0;
+            cached_path[0] = '\0';
+        }
+    }
+
+    // Scan for hwmon device
+    DIR *hwmon_dir = opendir("/sys/class/hwmon");
+    if (!hwmon_dir) {
+        return -1;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(hwmon_dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char name_path[PATH_MAX_LEN];
+        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
+            continue;
+        }
+
+        FILE *name_fp = fopen(name_path, "r");
+        if (name_fp) {
+            char dev_name[DEVICE_NAME_LEN];
+            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
+                dev_name[strcspn(dev_name, "\n")] = '\0';
+                if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
+                    fclose(name_fp);
+
+                    // Build temp1_input path
+                    if (snprintf(cached_path, sizeof(cached_path), "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)sizeof(cached_path)) {
+                        cache_valid = 1;
+                        strncpy(path_buf, cached_path, buf_size - 1);
+                        path_buf[buf_size - 1] = '\0';
+                        logging_debug("Found and cached hwmon path: %s", cached_path);
+                        closedir(hwmon_dir);
+                        return 0;
+                    }
+                }
+            }
+            fclose(name_fp);
+        }
+    }
+    closedir(hwmon_dir);
+
+    return -1;
+}
+
+/* ============================================================================
  * CLI MODE IMPLEMENTATION
  * ============================================================================ */
 
@@ -106,59 +183,29 @@ int cli_mode(char *temp_str, size_t temp_size)
         
         // Fall back to hwmon interface if main interface not available
         logging_debug("Main interface not available, trying hwmon...");
-        // Try reading from hwmon interface
-        DIR *hwmon_dir = opendir("/sys/class/hwmon");
-        if (hwmon_dir) {
-            struct dirent *entry;
-            while ((entry = readdir(hwmon_dir)) != NULL) {
-                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                    continue;
-                    
-                char name_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                char temp_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
-                    logging_warning("HWMON name path truncated, device skipped: %s", entry->d_name);
-                    continue;
-                }
-                if (snprintf(temp_path, sizeof(temp_path), "/sys/class/hwmon/%s/temp1_input", entry->d_name) >= sizeof(temp_path)) {
-                    logging_warning("HWMON temp path truncated, device skipped: %s", entry->d_name);
-                    continue;
-                }
-                
-                FILE *name_fp = fopen(name_path, "r");
-                if (name_fp) {
-                    char dev_name[SMALL_BUFFER_LEN];  // Reduced from 64 - device names are typically short
-                    if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
-                        dev_name[strcspn(dev_name, "\n")] = '\0';
-                        logging_debug("Checking hwmon device: %s (name: '%s')", entry->d_name, dev_name);
-                        if (strcmp(dev_name, "quectel_rm520n") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
-                            fclose(name_fp);
-                            logging_debug("Found quectel_rm520n hwmon device: %s", entry->d_name);
-                            
-                            // Found the hwmon device, read temperature
-                            FILE *temp_fp = fopen(temp_path, "r");
-                            if (temp_fp) {
-                                if (fgets(temp_str, temp_size, temp_fp) != NULL) {
-                                    temp_str[strcspn(temp_str, "\n")] = '\0';
 
-                                    if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
-                                        status = "ok";
-                                        logging_debug("Temperature read from hwmon: '%s'", temp_str);
-                                        logging_debug("Using temperature from daemon");
-                                        fclose(temp_fp);
-                                        closedir(hwmon_dir);
-                                        goto output_result;
-                                    }
-                                }
-                                fclose(temp_fp);
-                            }
-                            break;
-                        }
+        // Use cached hwmon discovery for better performance
+        char hwmon_path[PATH_MAX_LEN];
+        if (find_cached_hwmon_path(hwmon_path, sizeof(hwmon_path)) == 0) {
+            logging_debug("Found hwmon path: %s", hwmon_path);
+
+            FILE *temp_fp = fopen(hwmon_path, "r");
+            if (temp_fp) {
+                if (fgets(temp_str, temp_size, temp_fp) != NULL) {
+                    temp_str[strcspn(temp_str, "\n")] = '\0';
+
+                    if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
+                        status = "ok";
+                        logging_debug("Temperature read from hwmon: '%s'", temp_str);
+                        logging_debug("Using temperature from daemon");
+                        fclose(temp_fp);
+                        goto output_result;
                     }
-                    fclose(name_fp);
                 }
+                fclose(temp_fp);
             }
-            closedir(hwmon_dir);
+        } else {
+            logging_debug("Hwmon device not found");
         }
     }
     
