@@ -68,7 +68,8 @@ define Package/prometheus-node-exporter-ucode-$(PKG_NAME)
 	TITLE:=Prometheus collector for Quectel RM520N modem
 	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
 	MAINTAINER:=$(PKG_MAINTAINER)
-	DEPENDS:=+prometheus-node-exporter-ucode +$(PKG_NAME)
+	DEPENDS:=+$(PKG_NAME)
+	EXTRA_DEPENDS:=prometheus-node-exporter-ucode
 endef
 
 define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/description
