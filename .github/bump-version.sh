@@ -119,7 +119,7 @@ fi
 
 # commit only if something changed
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  git commit -m "chore: bump PKG_VERSION to ${NEW_VERSION} [skip ci]" || true
+  git commit -m "chore: bump PKG_VERSION to ${NEW_VERSION}" || true
   git push origin "HEAD:${BRANCH}"
   echo "Committed and pushed Makefile change to ${BRANCH}"
 else
