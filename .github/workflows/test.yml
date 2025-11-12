@@ -1,0 +1,15 @@
+name: Test
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run test
+        run: |
+          echo "Test"
