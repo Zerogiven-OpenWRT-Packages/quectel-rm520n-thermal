@@ -1,5 +1,6 @@
 .vscode
 /dtsi
+CLAUDE.md
 
 # Object files
 *.o
