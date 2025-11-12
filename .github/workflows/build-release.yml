@@ -50,7 +50,7 @@ jobs:
         uses: openwrt/gh-action-sdk@v9
         env:
           ARCH: ${{ matrix.arch }}-${{ matrix.openwrt_build_version }}
-          PACKAGES: kmod-quectel-rm520n-thermal quectel-rm520n-thermal
+          PACKAGES: quectel-rm520n-thermal
           V: 0
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
