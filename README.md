@@ -4,10 +4,12 @@
 
 - [Overview](#overview)
 - [Features](#features)
+- [Thermal Framework Integration](#thermal-framework-integration)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Configuration](#configuration)
   - [UCI Configuration Options](#uci-configuration-options)
+  - [Device Tree Configuration](#device-tree-configuration)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
@@ -20,14 +22,16 @@ This project provides a comprehensive set of tools and kernel modules for monito
 
 ## Features
 
+- **Linux Thermal Framework Integration**: Full integration with the Linux kernel thermal subsystem for proper thermal management.
+- **Device Tree Configuration**: Trip points, cooling devices, and thermal policies configured via Device Tree for automatic thermal response.
+- **Automatic Thermal Events**: Kernel automatically sends uevents when trip points are crossed, no userspace polling needed for alerts.
+- **hwmon Standard Interface**: Standard `/sys/class/hwmon/` interface for compatibility with all Linux monitoring tools.
+- **Cooling Device Support**: Can bind to cooling devices (fans, throttling) via Device Tree cooling-maps for automatic thermal control.
 - **OpenWRT Integration**: Fully compatible with OpenWRT build systems for seamless integration into custom firmware builds.
-- **Dynamic Device Tree Overlays (DTO)**: Supports dynamic registration of virtual sensors via DTOs.
-- **Configurable Daemon**: A userspace daemon reads modem temperature via AT commands and updates sysfs, virtual sensors, and hwmon nodes.
+- **Configurable Daemon**: Userspace daemon reads modem temperature via AT commands and updates kernel thermal zones.
 - **CLI Tool**: Command-line interface for manual temperature reading with JSON output support.
-- **Kernel Modules**: Includes kernel modules for sysfs-based temperature reporting, hwmon integration, and virtual thermal sensors.
-- **Temperature Alerting**: Automatic syslog alerts when critical temperature thresholds are breached.
 - **Prometheus Metrics**: Optional ucode collector package for integration with prometheus-node-exporter-ucode.
-- **Fallback Mechanisms**: Provides fallback options when Device Tree overlay is not supported.
+- **Fallback Mechanisms**: Works without Device Tree for basic monitoring on systems without DT support.
 - **Open Source**: Licensed under the GNU General Public License for maximum flexibility.
 
 ## Components
@@ -36,6 +40,68 @@ This project provides a comprehensive set of tools and kernel modules for monito
 - **Userspace Tool**: Combined daemon and CLI with subcommands (`read`, `daemon`, `config`)
 - **Configuration**: UCI-based configuration with automatic service reload
 - **Service Management**: OpenWrt procd integration with auto-restart
+
+## Thermal Framework Integration
+
+This package provides **full integration with the Linux kernel thermal framework**, the standard way to handle thermal management in Linux systems.
+
+### How It Works
+
+1. **Temperature Updates**: The userspace daemon reads modem temperature via AT commands and writes it to the kernel thermal zone.
+
+2. **Trip Points**: Configured in Device Tree (DTS/DTSI), the kernel automatically monitors temperature against defined thresholds:
+   - **critical**: System-critical temperature (e.g., 85°C) - triggers emergency shutdown
+   - **hot**: High temperature warning (e.g., 80°C)
+   - **active**: Temperature levels for active cooling (e.g., 65-75°C)
+   - **passive**: Temperature for passive cooling/throttling
+
+3. **Automatic Events**: When temperature crosses a trip point, the kernel automatically:
+   - Sends `uevent` notifications to userspace
+   - Triggers associated cooling devices (if configured)
+   - Logs thermal events to kernel messages
+   - **No userspace polling required**
+
+4. **Cooling Devices**: Can bind to fans, thermal throttling, or other cooling mechanisms via Device Tree cooling-maps.
+
+### Standard Interfaces
+
+The thermal zone exposes standard Linux interfaces:
+
+```bash
+# Thermal zone
+/sys/class/thermal/thermal_zoneX/
+├── temp                    # Current temperature (millidegrees)
+├── type                    # "quectel_rm520n_modem"
+├── mode                    # enabled/disabled
+├── trip_point_0_temp       # Critical trip point (from DTS)
+├── trip_point_0_type       # "critical"
+├── trip_point_1_temp       # Hot trip point (from DTS)
+├── trip_point_1_type       # "hot"
+└── ...
+
+# hwmon interface (for monitoring tools)
+/sys/class/hwmon/hwmonX/
+├── temp1_input            # Current temperature (millidegrees)
+├── temp1_min              # Minimum threshold
+├── temp1_max              # Maximum threshold
+└── temp1_crit             # Critical threshold
+```
+
+### With vs Without Device Tree
+
+**With Device Tree (Recommended):**
+- Trip points defined in DTS
+- Automatic thermal events from kernel
+- Can bind to cooling devices
+- Full thermal management
+
+**Without Device Tree (Fallback):**
+- Basic temperature monitoring only
+- No automatic trip point handling
+- Manual monitoring via hwmon/sysfs
+- No cooling device integration
+
+See [Device Tree Configuration](#device-tree-configuration) for DTS examples.
 
 ## Quick Start
 
@@ -170,6 +236,134 @@ OK
 ```
 
 To use with different modem models, simply adjust the temperature parsing prefixes in the UCI configuration to match your modem's response format.
+
+### Device Tree Configuration
+
+For full thermal framework integration with automatic trip point handling and cooling device support, configure the thermal zone in your Device Tree.
+
+#### Basic Thermal Zone (Monitoring Only)
+
+```dts
+/ {
+    thermal-zones {
+        modem_thermal: modem-thermal {
+            polling-delay-passive = <5000>;   /* Poll every 5s when trip point active */
+            polling-delay = <10000>;          /* Poll every 10s normally */
+            thermal-sensors = <&quectel_temp_sensor>;
+
+            trips {
+                modem_crit: crit {
+                    temperature = <85000>;    /* 85°C in millidegrees */
+                    hysteresis = <5000>;      /* 5°C hysteresis */
+                    type = "critical";        /* Emergency shutdown */
+                };
+
+                modem_hot: hot {
+                    temperature = <80000>;    /* 80°C */
+                    hysteresis = <5000>;
+                    type = "hot";             /* High temperature warning */
+                };
+
+                modem_active_high: active-high {
+                    temperature = <75000>;    /* 75°C */
+                    hysteresis = <5000>;
+                    type = "active";          /* Active cooling level 3 */
+                };
+
+                modem_active_med: active-med {
+                    temperature = <70000>;    /* 70°C */
+                    hysteresis = <5000>;
+                    type = "active";          /* Active cooling level 2 */
+                };
+
+                modem_active_low: active-low {
+                    temperature = <65000>;    /* 65°C */
+                    hysteresis = <5000>;
+                    type = "active";          /* Active cooling level 1 */
+                };
+            };
+        };
+    };
+};
+```
+
+#### With Cooling Device (Fan Control)
+
+To bind trip points to a cooling device (e.g., PWM fan), add cooling-maps:
+
+```dts
+/ {
+    thermal-zones {
+        modem_thermal: modem-thermal {
+            polling-delay-passive = <5000>;
+            polling-delay = <10000>;
+            thermal-sensors = <&quectel_temp_sensor>;
+
+            trips {
+                modem_crit: crit {
+                    temperature = <85000>;
+                    hysteresis = <5000>;
+                    type = "critical";
+                };
+
+                modem_active_high: active-high {
+                    temperature = <75000>;
+                    hysteresis = <5000>;
+                    type = "active";
+                };
+
+                modem_active_med: active-med {
+                    temperature = <70000>;
+                    hysteresis = <5000>;
+                    type = "active";
+                };
+
+                modem_active_low: active-low {
+                    temperature = <65000>;
+                    hysteresis = <5000>;
+                    type = "active";
+                };
+            };
+
+            cooling-maps {
+                /* Map active-low trip (65°C) to fan speed 1 */
+                map0 {
+                    trip = <&modem_active_low>;
+                    cooling-device = <&fan 1 1>;  /* Set fan to speed level 1 */
+                };
+
+                /* Map active-med trip (70°C) to fan speed 2 */
+                map1 {
+                    trip = <&modem_active_med>;
+                    cooling-device = <&fan 2 2>;  /* Set fan to speed level 2 */
+                };
+
+                /* Map active-high trip (75°C) to fan speed 3 (max) */
+                map2 {
+                    trip = <&modem_active_high>;
+                    cooling-device = <&fan 3 3>;  /* Set fan to maximum speed */
+                };
+            };
+        };
+    };
+};
+```
+
+**Note**: Replace `<&fan>` with your actual cooling device phandle. Common cooling devices:
+- PWM fans: `<&pwm_fan>`
+- GPIO fans: `<&gpio_fan>`
+- CPU frequency scaling: `<&cpu0>` (for passive cooling/throttling)
+
+#### Trip Point Types
+
+- **critical**: Emergency level - kernel may trigger shutdown
+- **hot**: High temperature warning, logged to kernel messages
+- **active**: Activate cooling devices (fans, etc.)
+- **passive**: Reduce device performance (throttling)
+
+#### Complete Example
+
+See `quectel_rm520n_thermal_overlay.dts.example` in the project root for a complete Device Tree overlay example.
 
 ## Usage
 

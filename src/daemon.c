@@ -56,89 +56,8 @@ typedef struct {
 
 static daemon_stats_t g_stats = {0};
 
-/* Temperature alert state tracking */
-typedef struct {
-    bool alert_active;           /* True if currently in alert state */
-    time_t last_alert_time;      /* Timestamp of last alert */
-    int last_alerted_temp;       /* Temperature when last alerted */
-} alert_state_t;
-
-static alert_state_t g_alert_state = {0};
-
 /* Daemon start time for uptime calculation */
 static time_t g_daemon_start_time = 0;
-
-/* ============================================================================
- * TEMPERATURE ALERTING
- * ============================================================================ */
-
-/**
- * check_temperature_alerts - Check temperature against thresholds and alert
- * @temp_mdeg: Current temperature in millidegrees Celsius
- *
- * Monitors temperature against critical threshold and generates syslog alerts
- * when breaches occur. Implements hysteresis to prevent alert spam:
- * - Alerts when temperature rises above temp_crit
- * - Alerts when temperature falls back below temp_crit (recovery)
- * - Minimum 60 second interval between repeated alerts at same level
- */
-static void check_temperature_alerts(int temp_mdeg)
-{
-    // Read current critical threshold from sysfs
-    int temp_crit_mdeg = DEFAULT_TEMP_CRIT;
-    FILE *crit_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp_crit", "r");
-    if (crit_fp) {
-        char buf[32];
-        if (fgets(buf, sizeof(buf), crit_fp) != NULL) {
-            temp_crit_mdeg = atoi(buf);
-        }
-        fclose(crit_fp);
-    }
-
-    time_t now = time(NULL);
-    int temp_celsius = temp_mdeg / 1000;
-    int temp_crit_celsius = temp_crit_mdeg / 1000;
-    bool threshold_breached = (temp_mdeg >= temp_crit_mdeg);
-
-    // Check if we're entering alert state (temperature rising above threshold)
-    if (threshold_breached && !g_alert_state.alert_active) {
-        logging_error("CRITICAL TEMPERATURE ALERT: Modem temperature %d°C has exceeded critical threshold %d°C",
-                     temp_celsius, temp_crit_celsius);
-        syslog(LOG_CRIT, "CRITICAL TEMPERATURE ALERT: Modem temperature %d°C has exceeded critical threshold %d°C",
-               temp_celsius, temp_crit_celsius);
-
-        g_alert_state.alert_active = true;
-        g_alert_state.last_alert_time = now;
-        g_alert_state.last_alerted_temp = temp_mdeg;
-    }
-    // Check if we're exiting alert state (temperature falling below threshold)
-    else if (!threshold_breached && g_alert_state.alert_active) {
-        logging_info("Temperature recovery: Modem temperature %d°C has fallen below critical threshold %d°C",
-                    temp_celsius, temp_crit_celsius);
-        syslog(LOG_WARNING, "Temperature recovery: Modem temperature %d°C has fallen below critical threshold %d°C",
-               temp_celsius, temp_crit_celsius);
-
-        g_alert_state.alert_active = false;
-        g_alert_state.last_alert_time = now;
-        g_alert_state.last_alerted_temp = temp_mdeg;
-    }
-    // If still in alert state and temperature increased significantly, re-alert
-    else if (threshold_breached && g_alert_state.alert_active) {
-        // Re-alert if temperature increased by 5°C or 60 seconds passed
-        int temp_delta_mdeg = temp_mdeg - g_alert_state.last_alerted_temp;
-        time_t time_delta = now - g_alert_state.last_alert_time;
-
-        if (temp_delta_mdeg >= 5000 || time_delta >= 60) {
-            logging_error("CRITICAL TEMPERATURE CONTINUES: Modem temperature %d°C (threshold: %d°C)",
-                         temp_celsius, temp_crit_celsius);
-            syslog(LOG_CRIT, "CRITICAL TEMPERATURE CONTINUES: Modem temperature %d°C (threshold: %d°C)",
-                   temp_celsius, temp_crit_celsius);
-
-            g_alert_state.last_alert_time = now;
-            g_alert_state.last_alerted_temp = temp_mdeg;
-        }
-    }
-}
 
 /* ============================================================================
  * CLEANUP FUNCTIONS
@@ -480,9 +399,6 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     
                     // Increment successful read counter
                     g_stats.successful_reads++;
-
-                    // Check for temperature alerts
-                    check_temperature_alerts(best_temp_mdeg);
 
                     // Write to main sysfs interface (primary interface for CLI tool)
                     if (access("/sys/kernel/quectel_rm520n_thermal/temp", W_OK) == 0) {

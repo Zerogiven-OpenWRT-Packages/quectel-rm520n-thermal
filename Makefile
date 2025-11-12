@@ -58,7 +58,7 @@ define Package/$(PKG_NAME)/description
    - UCI-based configuration with automatic service reload
    - Configurable temperature parsing prefixes for different modem models
    - Temperature output in millidegrees (default) or degrees Celsius
-   - Temperature alerting via syslog on critical threshold breach
+   - Linux thermal framework integration with automatic thermal events
 endef
 
 # --- Prometheus ucode collector package definition ---

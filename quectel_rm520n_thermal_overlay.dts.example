@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: (GPL-3.0 OR MIT)
 /*
  * Device Tree Overlay Example for Quectel RM520N Thermal Management
- * 
+ *
  * This example shows how to add thermal zone support for the Quectel RM520N
- * modem to your device tree. This example does NOT include cooling maps or
- * fan control - those will be added in a separate example.
- * 
+ * modem to your device tree, including cooling device integration for fan control.
+ *
+ * Two configurations are provided:
+ * - fragment@1: Basic monitoring with trip points only
+ * - fragment@2: Full thermal management with cooling maps (fan control)
+ *
  * To use this overlay:
  * 1. Copy this file to your device tree directory
  * 2. Modify the thermal sensor device path to match your system
  * 3. Adjust temperature thresholds as needed for your modem
- * 4. Compile and apply the device tree overlay
- * 
+ * 4. Update cooling device references to match your hardware
+ * 5. Compile and apply the device tree overlay
+ *
  * Author: Christopher Sollinger
  * Date: 2025
  */
@@ -34,56 +38,150 @@
 		};
 	};
 
-	/* Thermal zone for modem temperature monitoring */
+	/*
+	 * Fragment 1: Basic thermal zone with trip points only (monitoring)
+	 *
+	 * This configuration provides temperature monitoring with automatic
+	 * kernel uevent notifications when trip points are crossed.
+	 * No active cooling control.
+	 *
+	 * Uncomment this fragment for monitoring-only configuration.
+	 */
+	/*
 	fragment@1 {
 		target-path = "/thermal-zones";
 		__overlay__ {
 			modem_thermal: modem-thermal {
-				polling-delay-passive = <5000>;
-				polling-delay = <10000>;
+				polling-delay-passive = <5000>;  // Poll every 5s when trip active
+				polling-delay = <10000>;         // Poll every 10s normally
 				thermal-sensors = <&quectel_temp_sensor>;
 
 				trips {
 					modem_trip_crit: crit {
-						temperature = <85000>;
-						hysteresis = <5000>;
+						temperature = <85000>;   // 85°C critical shutdown
+						hysteresis = <5000>;     // 5°C hysteresis
 						type = "critical";
 					};
 
 					modem_trip_hot: hot {
-						temperature = <80000>;
+						temperature = <80000>;   // 80°C high warning
 						hysteresis = <5000>;
 						type = "hot";
 					};
 
 					modem_trip_active_high: active-high {
-						temperature = <75000>;
+						temperature = <75000>;   // 75°C active cooling level 3
 						hysteresis = <5000>;
 						type = "active";
 					};
 
 					modem_trip_active_med: active-med {
-						temperature = <70000>;
+						temperature = <70000>;   // 70°C active cooling level 2
 						hysteresis = <5000>;
 						type = "active";
 					};
 
 					modem_trip_active_low: active-low {
-						temperature = <65000>;
+						temperature = <65000>;   // 65°C active cooling level 1
 						hysteresis = <5000>;
 						type = "active";
 					};
 				};
 
-				/* 
-				 * NOTE: No cooling maps defined in this example
-				 * 
-				 * To add fan control, you would add a cooling-maps section here
-				 * that references your modem's cooling device (fan, etc.).
-				 * 
-				 * Example cooling maps will be provided in a separate example
-				 * file that shows how to integrate with your specific fan hardware.
-				 */
+				// No cooling-maps - monitoring only
+			};
+		};
+	};
+	*/
+
+	/*
+	 * Fragment 2: Full thermal management with cooling device control
+	 *
+	 * This configuration includes cooling-maps that bind trip points to
+	 * a cooling device (fan). When temperature crosses trip points, the
+	 * kernel automatically adjusts the fan speed.
+	 *
+	 * Prerequisites:
+	 * - Cooling device (fan) must be defined in your device tree
+	 * - Update <&fan> references to match your cooling device phandle
+	 *
+	 * Common cooling device examples:
+	 * - PWM fan: <&pwm_fan>
+	 * - GPIO fan: <&gpio_fan>
+	 * - CPU throttling: <&cpu0>
+	 */
+	fragment@1 {
+		target-path = "/thermal-zones";
+		__overlay__ {
+			modem_thermal: modem-thermal {
+				polling-delay-passive = <5000>;  // Poll every 5s when trip active
+				polling-delay = <10000>;         // Poll every 10s normally
+				thermal-sensors = <&quectel_temp_sensor>;
+
+				trips {
+					modem_trip_crit: crit {
+						temperature = <85000>;   // 85°C critical shutdown
+						hysteresis = <5000>;     // 5°C hysteresis
+						type = "critical";
+					};
+
+					modem_trip_hot: hot {
+						temperature = <80000>;   // 80°C high warning
+						hysteresis = <5000>;
+						type = "hot";
+					};
+
+					modem_trip_active_high: active-high {
+						temperature = <75000>;   // 75°C max fan speed
+						hysteresis = <5000>;
+						type = "active";
+					};
+
+					modem_trip_active_med: active-med {
+						temperature = <70000>;   // 70°C medium fan speed
+						hysteresis = <5000>;
+						type = "active";
+					};
+
+					modem_trip_active_low: active-low {
+						temperature = <65000>;   // 65°C low fan speed
+						hysteresis = <5000>;
+						type = "active";
+					};
+				};
+
+				cooling-maps {
+					/*
+					 * Cooling map 0: Low fan speed at 65°C
+					 *
+					 * When temperature crosses modem_trip_active_low (65°C),
+					 * set cooling device (fan) to state 1 (low speed).
+					 *
+					 * Format: cooling-device = <&device min_state max_state>
+					 * - min_state: minimum cooling level to apply
+					 * - max_state: maximum cooling level to apply
+					 */
+					map0 {
+						trip = <&modem_trip_active_low>;
+						cooling-device = <&fan 1 1>;  // Fan state 1 (low speed)
+					};
+
+					/*
+					 * Cooling map 1: Medium fan speed at 70°C
+					 */
+					map1 {
+						trip = <&modem_trip_active_med>;
+						cooling-device = <&fan 2 2>;  // Fan state 2 (medium speed)
+					};
+
+					/*
+					 * Cooling map 2: Maximum fan speed at 75°C
+					 */
+					map2 {
+						trip = <&modem_trip_active_high>;
+						cooling-device = <&fan 3 3>;  // Fan state 3 (max speed)
+					};
+				};
 			};
 		};
 	};
