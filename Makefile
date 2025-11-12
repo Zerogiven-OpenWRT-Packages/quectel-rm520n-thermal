@@ -31,7 +31,6 @@ define KernelPackage/$(PKG_NAME)
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp_sensor_hwmon.ko
   AUTOLOAD:=$(call AutoLoad,50,quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon)
   DEPENDS:=+libuci +libsysfs +kmod-hwmon-core
-  PKGARCH:=all
 endef
 
 define KernelPackage/$(PKG_NAME)/description
@@ -48,7 +47,6 @@ define Package/$(PKG_NAME)
   URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
   MAINTAINER:=$(PKG_MAINTAINER)
   DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs
-  PKGARCH:=all
 endef
 
 define Package/$(PKG_NAME)/description
@@ -61,6 +59,28 @@ define Package/$(PKG_NAME)/description
    - Configurable temperature parsing prefixes for different modem models
    - Temperature output in millidegrees (default) or degrees Celsius
    - Temperature alerting via syslog on critical threshold breach
+endef
+
+# --- Prometheus ucode collector package definition ---
+define Package/prometheus-node-exporter-ucode-$(PKG_NAME)
+	SECTION:=utils
+	CATEGORY:=Utilities
+	TITLE:=Quectel RM520N Thermal Management Prometheus Exporter
+	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
+  	MAINTAINER:=$(PKG_MAINTAINER)
+	DEPENDS:=+prometheus-node-exporter-ucode +$(PKG_NAME)
+endef
+
+define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/description
+	Provides a ucode collector for prometheus-node-exporter-ucode that exports
+	Quectel RM520N modem temperature metrics and daemon statistics.
+
+	Metrics exported:
+	- quectel_modem_temperature_celsius
+	- quectel_modem_temp_{min,max,crit}_celsius
+	- quectel_modem_updates_total
+	- quectel_modem_last_update_timestamp_seconds
+	- quectel_daemon_running
 endef
 
 # --- Build/Prepare ---
@@ -121,11 +141,11 @@ endef
 # --- Userspace package install ---
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/etc/config/quectel_rm520n_thermal \
+	$(INSTALL_CONF) ./files/quectel_rm520n_thermal \
 	                $(1)/etc/config/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/etc/init.d/quectel_rm520n_thermal.init \
+	$(INSTALL_BIN) ./files/quectel_rm520n_thermal.init \
 	               $(1)/etc/init.d/quectel_rm520n_thermal
 
 	$(INSTALL_DIR) $(1)/usr/bin
@@ -134,34 +154,20 @@ define Package/$(PKG_NAME)/install
 
 endef
 
-# --- Prometheus ucode collector package definition ---
-define Package/prometheus-node-exporter-ucode-quectel-modem
-  SECTION:=utils
-  CATEGORY:=Utilities
-  TITLE:=Prometheus ucode collector for Quectel RM520N modem
-  DEPENDS:=prometheus-node-exporter-ucode +$(PKG_NAME)
-  PKGARCH:=all
-endef
-
-define Package/prometheus-node-exporter-ucode-quectel-modem/description
-  Provides a ucode collector for prometheus-node-exporter-ucode that exports
-  Quectel RM520N modem temperature metrics and daemon statistics.
-
-  Metrics exported:
-   - quectel_modem_temperature_celsius
-   - quectel_modem_temp_{min,max,crit}_celsius
-   - quectel_modem_updates_total
-   - quectel_modem_last_update_timestamp_seconds
-   - quectel_daemon_running
-endef
-
-define Package/prometheus-node-exporter-ucode-quectel-modem/install
+define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/share/ucode/node-exporter/lib
-	$(INSTALL_DATA) ./files/extra/quectel_modem.uc \
-		$(1)/usr/share/ucode/node-exporter/lib/quectel_modem.uc
+	$(INSTALL_DATA) ./files/quectel_rm520n_thermal.uc \
+		$(1)/usr/share/ucode/node-exporter/lib/quectel_rm520n_thermal.uc
+endef
+
+define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/postinst
+	#!/bin/sh
+	[ -n "$${IPKG_INSTROOT}" ] || {
+		/etc/init.d/prometheus-node-exporter-ucode reload 2>/dev/null || true
+	}
 endef
 
 # --- Evaluation ---
 $(eval $(call KernelPackage,$(PKG_NAME)))
 $(eval $(call BuildPackage,$(PKG_NAME)))
-$(eval $(call BuildPackage,prometheus-node-exporter-ucode-quectel-modem))
+$(eval $(call BuildPackage,prometheus-node-exporter-ucode-$(PKG_NAME)))
