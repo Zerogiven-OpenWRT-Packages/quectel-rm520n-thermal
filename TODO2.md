@@ -1,0 +1,3 @@
+- Make the whole package more generic for modems where temp can be get by AT commands. Because in theory this package should work for all of them if package is parsing the result correctly (can differ with modems but is already configurable with uci). However, for now the package is designed for my situation but it should be easy to adapt it to all other modems.
+    - This meas full renaming the package from quectel-rm520n-thermal to something like at-modem-thermal or serial-modem-thermal
+- Add multiple modem support (see TODO.md)
