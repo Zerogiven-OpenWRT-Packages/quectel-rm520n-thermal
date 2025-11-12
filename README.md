@@ -25,6 +25,8 @@ This project provides a comprehensive set of tools and kernel modules for monito
 - **Configurable Daemon**: A userspace daemon reads modem temperature via AT commands and updates sysfs, virtual sensors, and hwmon nodes.
 - **CLI Tool**: Command-line interface for manual temperature reading with JSON output support.
 - **Kernel Modules**: Includes kernel modules for sysfs-based temperature reporting, hwmon integration, and virtual thermal sensors.
+- **Temperature Alerting**: Automatic syslog alerts when critical temperature thresholds are breached.
+- **Prometheus Metrics**: Optional ucode collector package for integration with prometheus-node-exporter-ucode.
 - **Fallback Mechanisms**: Provides fallback options when Device Tree overlay is not supported.
 - **Open Source**: Licensed under the GNU General Public License for maximum flexibility.
 
@@ -44,7 +46,8 @@ quectel_rm520n_temp
 # Start daemon service
 /etc/init.d/quectel_rm520n_thermal start
 
-# Check status
+# Check daemon and service status
+quectel_rm520n_temp status
 /etc/init.d/quectel_rm520n_thermal status
 ```
 
@@ -67,6 +70,9 @@ make
 make package/quectel-rm520n-thermal/compile V=s
 opkg install bin/packages/.../kmod-quectel-rm520n-thermal.ipk
 opkg install bin/packages/.../quectel-rm520n-thermal.ipk
+
+# Optional: Install Prometheus metrics collector
+opkg install bin/packages/.../prometheus-node-exporter-ucode-quectel-rm520n-thermal.ipk
 ```
 
 **Note**: Service starts automatically after installation.
@@ -211,7 +217,7 @@ quectel_rm520n_temp config
 
 ### Temperature Interfaces
 - **Hwmon**: `/sys/class/hwmon/hwmonX/temp1_input` (primary)
-- **Kernel**: `/sys/kernel/quectel_rm520n/temp`
+- **Kernel**: `/sys/kernel/quectel_rm520n_thermal/temp`
 - **Thermal**: `/sys/devices/virtual/thermal/thermal_zoneX/temp`
 
 ### Temperature Output Format
@@ -246,7 +252,7 @@ ls /sys/class/hwmon/
 
 # Find Quectel device
 for hwmon in /sys/class/hwmon/*; do \
-  if [ "$(cat $hwmon/name)" = "quectel_rm520n" ]; then \
+  if [ "$(cat $hwmon/name)" = "quectel_rm520n_thermal" ]; then \
     echo "Found: $hwmon"; \
   fi; \
 done

@@ -65,22 +65,16 @@ endef
 define Package/prometheus-node-exporter-ucode-$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
-	TITLE:=Quectel RM520N Thermal Management Prometheus Exporter
+	TITLE:=Prometheus collector for Quectel RM520N modem
 	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
-  	MAINTAINER:=$(PKG_MAINTAINER)
+	MAINTAINER:=$(PKG_MAINTAINER)
 	DEPENDS:=+prometheus-node-exporter-ucode +$(PKG_NAME)
 endef
 
 define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/description
-	Provides a ucode collector for prometheus-node-exporter-ucode that exports
+	ucode collector for prometheus-node-exporter-ucode that exports
 	Quectel RM520N modem temperature metrics and daemon statistics.
-
-	Metrics exported:
-	- quectel_modem_temperature_celsius
-	- quectel_modem_temp_{min,max,crit}_celsius
-	- quectel_modem_updates_total
-	- quectel_modem_last_update_timestamp_seconds
-	- quectel_daemon_running
+	Requires prometheus-node-exporter-ucode service.
 endef
 
 # --- Build/Prepare ---
