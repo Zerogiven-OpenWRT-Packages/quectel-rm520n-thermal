@@ -76,7 +76,7 @@ jobs:
         if: "${{ github.event.inputs.openwrt_version == matrix.openwrt_version || github.event.inputs.openwrt_version == 'both' }}"
         env:
           ARCH: ${{ matrix.arch }}-${{ matrix.openwrt_build_version }}
-          PACKAGES: kmod-quectel-rm520n-thermal quectel-rm520n-thermal
+          PACKAGES: kmod-quectel-rm520n-thermal quectel-rm520n-thermal prometheus-node-exporter-ucode-quectel-rm520n-thermal
           V: ${{ github.event.inputs.verbose == 'true' && 'sc' || '0' }}
           FEED_DIR: ${{ github.workspace }}/feed
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
@@ -86,3 +86,6 @@ jobs:
 
       - name: Verify package built
         run: find ${{ github.workspace }}/artifacts/bin/ -name 'quectel-rm520n-thermal*.ipk' -type f | grep . 
+
+      - name: Verify prometheus exporter package built
+        run: find ${{ github.workspace }}/artifacts/bin/ -name 'prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk' -type f | grep . 
