@@ -71,8 +71,8 @@ jobs:
                 "name": "quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
               },
               {
-                "search": "quectel-rm520n-thermal*.ipk",
-                "name": "quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
+                "search": "prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk",
+                "name": "prometheus-node-exporter-ucode-quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
               }
             ]
           output_directory: ${{ github.workspace }}/release-assets
