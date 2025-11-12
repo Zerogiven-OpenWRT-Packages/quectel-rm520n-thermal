@@ -35,17 +35,6 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.3'
             arch: 'aarch64_cortex-a53'
-
-          # 23.05
-          - openwrt_version: '23.05'
-            openwrt_build_version: '23.05.6'
-            arch: 'x86_64'
-          - openwrt_version: '23.05'
-            openwrt_build_version: '23.05.6'
-            arch: 'arm_cortex-a9'
-          - openwrt_version: '23.05'
-            openwrt_build_version: '23.05.6'
-            arch: 'aarch64_cortex-a53'
       fail-fast: false
 
     steps:
