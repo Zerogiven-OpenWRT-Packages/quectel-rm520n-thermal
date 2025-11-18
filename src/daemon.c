@@ -182,19 +182,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     }
 
     // Initialize logging system for daemon
-    // Use UCI log_level if set, otherwise fall back to debug flag for backward compatibility
-    log_level_t daemon_log_level = config_parse_log_level(config.log_level);
-    if (config.debug && daemon_log_level > LOG_LEVEL_DEBUG) {
-        daemon_log_level = LOG_LEVEL_DEBUG;  // Debug flag overrides to enable debug
-    }
-
-    logging_config_t log_config = {
-        .level = daemon_log_level,
-        .use_syslog = true,
-        .use_stderr = false,
-        .ident = BINARY_NAME
-    };
-    logging_init(&log_config);
+    // Daemon mode: use syslog output, no stderr
+    bool debug_enabled = config.debug;
+    logging_init(true, false, debug_enabled, BINARY_NAME);
 
     // Set up signal handlers for graceful shutdown
     signal(SIGTERM, signal_handler);

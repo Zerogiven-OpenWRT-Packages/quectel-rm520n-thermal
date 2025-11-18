@@ -44,29 +44,29 @@ void config_set_defaults(config_t *config)
 }
 
 /**
- * Parse log level string to log_level_t value
+ * Parse log level string to syslog priority value
  * @param level_str Log level string (e.g., "debug", "info", "warning", "error")
- * @return log_level_t value (defaults to LOG_LEVEL_INFO on invalid input)
+ * @return syslog priority value (defaults to LOG_INFO on invalid input)
  */
 int config_parse_log_level(const char *level_str)
 {
     if (!level_str) {
-        return LOG_LEVEL_INFO;
+        return LOG_INFO;
     }
 
     if (strcmp(level_str, "debug") == 0) {
-        return LOG_LEVEL_DEBUG;
+        return LOG_DEBUG;
     } else if (strcmp(level_str, "info") == 0) {
-        return LOG_LEVEL_INFO;
+        return LOG_INFO;
     } else if (strcmp(level_str, "warning") == 0) {
-        return LOG_LEVEL_WARNING;
+        return LOG_WARNING;
     } else if (strcmp(level_str, "error") == 0) {
-        return LOG_LEVEL_ERROR;
+        return LOG_ERR;
     }
 
     // Default to info for invalid values
     logging_debug("config_parse_log_level: invalid level '%s', using 'info'", level_str);
-    return LOG_LEVEL_INFO;
+    return LOG_INFO;
 }
 
 /**

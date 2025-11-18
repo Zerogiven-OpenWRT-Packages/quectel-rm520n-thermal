@@ -8,11 +8,11 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 CC ?= gcc
 CFLAGS ?= -O2 -Wall
 CFLAGS += -Wall -Wextra -Iinclude
-LIBS ?= -luci -lsysfs
+LIBS ?= -luci -lsysfs -lubox
 
 # Userspace program
 TARGET = quectel_rm520n_temp
-SRCS   = main.c serial.c config.c logging.c temperature.c ui.c system.c cli.c daemon.c uci_config.c
+SRCS   = main.c serial.c config.c temperature.c ui.c system.c cli.c daemon.c uci_config.c
 OBJS   = $(SRCS:.c=.o)
 
 all: $(TARGET)

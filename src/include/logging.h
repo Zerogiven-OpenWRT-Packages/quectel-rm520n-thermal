@@ -1,45 +1,61 @@
 /**
  * @file logging.h
- * @brief Shared logging functions for Quectel RM520N
+ * @brief Logging wrapper for OpenWRT ulog (libubox)
  * @author Christopher Sollinger
  * @date 2025
  * @license GPL
- * 
- * This header provides consistent logging functions used by
- * both the daemon and CLI tools for standardized output.
+ *
+ * This header provides a lightweight wrapper around OpenWRT's ulog
+ * library for consistent logging across daemon and CLI tools.
  */
 
 #ifndef LOGGING_H
 #define LOGGING_H
 
+#include <libubox/ulog.h>
 #include <syslog.h>
 #include <stdbool.h>
 
-/* Log levels */
-typedef enum {
-    LOG_LEVEL_DEBUG = 0,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_WARNING,
-    LOG_LEVEL_ERROR
-} log_level_t;
+/**
+ * Initialize logging system
+ *
+ * @param use_syslog Enable syslog output
+ * @param use_stderr Enable stderr output
+ * @param debug Enable debug level logging
+ * @param ident Program identifier string
+ */
+static inline void logging_init(bool use_syslog, bool use_stderr, bool debug, const char *ident)
+{
+    int channels = 0;
 
-/* Logging configuration */
-typedef struct {
-    log_level_t level;
-    bool use_syslog;
-    bool use_stderr;
-    const char *ident;
-} logging_config_t;
+    if (use_syslog) {
+        channels |= ULOG_SYSLOG;
+    }
+    if (use_stderr) {
+        channels |= ULOG_STDIO;
+    }
 
-/* Function declarations */
-void logging_init(logging_config_t *config);
-void logging_cleanup(void);
-void logging_log(log_level_t level, const char *format, ...);
+    ulog_open(channels, LOG_DAEMON, ident);
 
-/* Convenience macros */
-#define logging_debug(...)   logging_log(LOG_LEVEL_DEBUG, __VA_ARGS__)
-#define logging_info(...)    logging_log(LOG_LEVEL_INFO, __VA_ARGS__)
-#define logging_warning(...) logging_log(LOG_LEVEL_WARNING, __VA_ARGS__)
-#define logging_error(...)   logging_log(LOG_LEVEL_ERROR, __VA_ARGS__)
+    if (debug) {
+        ulog_threshold(LOG_DEBUG);
+    } else {
+        ulog_threshold(LOG_INFO);
+    }
+}
+
+/**
+ * Clean up logging system
+ */
+static inline void logging_cleanup(void)
+{
+    ulog_close();
+}
+
+/* Convenience macros mapping to ulog */
+#define logging_debug(...)   ulog(LOG_DEBUG, __VA_ARGS__)
+#define logging_info(...)    ULOG_INFO(__VA_ARGS__)
+#define logging_warning(...) ULOG_WARN(__VA_ARGS__)
+#define logging_error(...)   ULOG_ERR(__VA_ARGS__)
 
 #endif /* LOGGING_H */

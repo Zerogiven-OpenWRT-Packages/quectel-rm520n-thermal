@@ -15,7 +15,7 @@ PKG_MAINTAINER     := CSoellinger
 PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
-PKG_BUILD_DEPENDS := uci sysfsutils
+PKG_BUILD_DEPENDS := uci sysfsutils libubox
 
 BINARY_NAME := quectel_rm520n_temp
 
@@ -30,7 +30,7 @@ define KernelPackage/$(PKG_NAME)
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp_sensor.ko \
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp_sensor_hwmon.ko
   AUTOLOAD:=$(call AutoLoad,50,quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon)
-  DEPENDS:=+libuci +libsysfs +kmod-hwmon-core
+  DEPENDS:=+libuci +libsysfs +libubox +kmod-hwmon-core
 endef
 
 define KernelPackage/$(PKG_NAME)/description
@@ -46,7 +46,7 @@ define Package/$(PKG_NAME)
   TITLE:=Quectel RM520N Thermal Management Tools
   URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
   MAINTAINER:=$(PKG_MAINTAINER)
-  DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs
+  DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs +libubox
 endef
 
 define Package/$(PKG_NAME)/description
@@ -78,13 +78,11 @@ define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/description
 	Requires prometheus-node-exporter-ucode service.
 endef
 
-# --- Build/Prepare ---
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
 	$(CP) ./src/* $(PKG_BUILD_DIR)/
 endef
 
-# --- Build/Compile ---
 define Build/Compile
   # 1) Kernel modules via Kbuild
 	$(MAKE) $(KERNEL_MAKE_FLAGS) -C $(LINUX_DIR) M=$(PKG_BUILD_DIR) modules \
@@ -103,7 +101,6 @@ define Build/Compile
 		$(PKG_BUILD_DIR)/main.c \
 		$(PKG_BUILD_DIR)/serial.c \
 		$(PKG_BUILD_DIR)/config.c \
-		$(PKG_BUILD_DIR)/logging.c \
 		$(PKG_BUILD_DIR)/temperature.c \
 		$(PKG_BUILD_DIR)/ui.c \
 		$(PKG_BUILD_DIR)/system.c \
@@ -116,7 +113,7 @@ define Build/Compile
 		-DPKG_MAINTAINER=\"$(PKG_MAINTAINER)\" \
 		-DPKG_LICENSE=\"$(PKG_LICENSE)\" \
 		-DPKG_COPYRIGHT_YEAR=\"$(PKG_COPYRIGHT_YEAR)\" \
-		$(TARGET_LDFLAGS) -luci -lsysfs
+		$(TARGET_LDFLAGS) -luci -lsysfs -lubox
 endef
 
 # --- Kernel install (kernel-specific package) ---
@@ -149,6 +146,7 @@ define Package/$(PKG_NAME)/install
 
 endef
 
+# --- Prometheus package install ---
 define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/share/ucode/node-exporter/lib
 	$(INSTALL_DATA) ./files/quectel_rm520n_thermal.uc \
