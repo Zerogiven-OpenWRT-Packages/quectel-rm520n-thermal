@@ -203,21 +203,27 @@ int main(int argc, char *argv[])
                 return 2;
         }
     }
-    
-    // Read UCI configuration
-    config_read_uci(&config);
-    
 
-    
+    // Initialize logging system early (with default threshold)
+    // CLI mode: use stderr output, no syslog
+    // Start with INFO level, will update after reading config
+    logging_init(false, true, false, BINARY_NAME);
+
+    // Read UCI configuration (this may generate debug logs)
+    config_read_uci(&config);
+
+    // Update logging threshold based on config log_level
+    // --debug flag overrides config to set debug level
+    int log_threshold;
+    if (verbose_output) {
+        log_threshold = LOG_DEBUG;
+    } else {
+        log_threshold = config_parse_log_level(config.log_level);
+    }
+    ulog_threshold(log_threshold);
+
     // Check environment variables for CLI guidelines compliance
     check_environment_variables();
-    
-
-    
-    // Initialize logging system
-    // CLI mode: use stderr output, no syslog
-    bool debug_enabled = (verbose_output || config.debug);
-    logging_init(false, true, debug_enabled, BINARY_NAME);
     
     // Set up signal handling for graceful shutdown
     signal(SIGTERM, signal_handler);

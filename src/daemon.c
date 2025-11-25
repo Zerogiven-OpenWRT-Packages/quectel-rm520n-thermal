@@ -183,8 +183,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
 
     // Initialize logging system for daemon
     // Daemon mode: use syslog output, no stderr
-    bool debug_enabled = config.debug;
-    logging_init(true, false, debug_enabled, BINARY_NAME);
+    int log_threshold = config_parse_log_level(config.log_level);
+    logging_init(true, false, (log_threshold == LOG_DEBUG), BINARY_NAME);
 
     // Set up signal handlers for graceful shutdown
     signal(SIGTERM, signal_handler);
@@ -301,13 +301,20 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 int config_changed = (strcmp(previous_config.serial_port, config.serial_port) != 0) ||
                                     (previous_config.baud_rate != config.baud_rate) ||
                                     (previous_config.interval != config.interval) ||
-                                    (previous_config.debug != config.debug) ||
+                                    (strcmp(previous_config.log_level, config.log_level) != 0) ||
                                     (strcmp(previous_config.temp_modem_prefix, config.temp_modem_prefix) != 0) ||
                                     (strcmp(previous_config.temp_ap_prefix, config.temp_ap_prefix) != 0) ||
                                     (strcmp(previous_config.temp_pa_prefix, config.temp_pa_prefix) != 0);
 
                 if (config_changed) {
-                    logging_info("UCI configuration changed, updating kernel module thresholds");
+                    logging_info("UCI configuration changed, updating settings");
+
+                    // If log level changed, update logging threshold
+                    if (strcmp(previous_config.log_level, config.log_level) != 0) {
+                        int new_threshold = config_parse_log_level(config.log_level);
+                        ulog_threshold(new_threshold);
+                        logging_info("Log level changed to '%s'", config.log_level);
+                    }
 
                     // If serial port or baud rate changed, close current connection
                     // It will be reopened with new settings on next iteration

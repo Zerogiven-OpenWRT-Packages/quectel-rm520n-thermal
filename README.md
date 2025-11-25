@@ -158,7 +158,7 @@ The thermal management system is configured through the UCI (Unified Configurati
 | `interval` | integer | `10` | Temperature monitoring interval in seconds |
 | `enabled` | boolean | `1` | Enable/disable the thermal management service |
 | `auto_start` | boolean | `1` | Automatically start service on boot |
-| `debug` | boolean | `0` | Enable debug logging for troubleshooting |
+| `log_level` | string | `info` | Logging level: `debug`, `info`, `warning`, or `error` |
 
 #### Temperature Thresholds
 
@@ -189,12 +189,12 @@ config quectel_rm520n_thermal 'settings'
     option serial_port '/dev/ttyUSB3'
     option baud_rate '115200'
     option interval '10'
-    
+
     # Service control
     option enabled '1'
     option auto_start '1'
-    option debug '0'
-    
+    option log_level 'info'
+
     # Temperature thresholds (in °C, converted to m°C internally)
     option temp_min '-30'
     option temp_max '75'
@@ -431,12 +431,17 @@ quectel_rm520n_temp config
 ### Debug Mode
 ```bash
 # Enable debug logging
-uci set quectel_rm520n_thermal.settings.debug='1'
+uci set quectel_rm520n_thermal.settings.log_level='debug'
 uci commit quectel_rm520n_thermal
 /sbin/reload_config
 
 # Check logs
 logread | grep quectel
+
+# Disable debug logging (return to info level)
+uci set quectel_rm520n_thermal.settings.log_level='info'
+uci commit quectel_rm520n_thermal
+/sbin/reload_config
 ```
 
 ### Finding Hwmon Interface

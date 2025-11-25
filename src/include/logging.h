@@ -52,10 +52,15 @@ static inline void logging_cleanup(void)
     ulog_close();
 }
 
+/* Compatibility: Define ULOG_DBG if not available in libubox */
+#ifndef ULOG_DBG
+#define ULOG_DBG(fmt, ...) ulog(LOG_DEBUG, fmt "\n", ##__VA_ARGS__)
+#endif
+
 /* Convenience macros mapping to ulog */
-#define logging_debug(...)   ulog(LOG_DEBUG, __VA_ARGS__)
-#define logging_info(...)    ULOG_INFO(__VA_ARGS__)
-#define logging_warning(...) ULOG_WARN(__VA_ARGS__)
-#define logging_error(...)   ULOG_ERR(__VA_ARGS__)
+#define logging_debug(fmt, ...)   ULOG_DBG(fmt, ##__VA_ARGS__)
+#define logging_info(...)         ULOG_INFO(__VA_ARGS__)
+#define logging_warning(...)      ULOG_WARN(__VA_ARGS__)
+#define logging_error(...)        ULOG_ERR(__VA_ARGS__)
 
 #endif /* LOGGING_H */

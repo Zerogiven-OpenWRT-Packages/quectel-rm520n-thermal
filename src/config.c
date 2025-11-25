@@ -36,7 +36,6 @@ void config_set_defaults(config_t *config)
     config->interval = 10;
     config->baud_rate = B115200;
     strcpy(config->error_value, "N/A");
-    config->debug = 0;
     strcpy(config->log_level, "info");
     strcpy(config->temp_modem_prefix, "modem-ambient-usr");
     strcpy(config->temp_ap_prefix, "cpuss-0-usr");
@@ -168,12 +167,6 @@ int config_read_uci(config_t *config)
         const char *error_str = uci_lookup_option_string(ctx, section, "error_value");
         if (error_str) {
             SAFE_STRNCPY(config->error_value, error_str, sizeof(config->error_value));
-        }
-        
-        // Read debug flag
-        const char *debug_str = uci_lookup_option_string(ctx, section, "debug");
-        if (debug_str) {
-            config->debug = atoi(debug_str);
         }
 
         // Read log level

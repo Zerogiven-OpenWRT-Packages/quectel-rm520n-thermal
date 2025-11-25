@@ -21,7 +21,6 @@ typedef struct {
     int interval;
     speed_t baud_rate;
     char error_value[CONFIG_STRING_LEN];
-    int debug;
     char log_level[CONFIG_STRING_LEN];
     char temp_modem_prefix[CONFIG_STRING_LEN];
     char temp_ap_prefix[CONFIG_STRING_LEN];

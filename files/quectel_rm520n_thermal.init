@@ -22,13 +22,11 @@ load_config() {
     
     # Set defaults
     fallback_register=1
-    debug=0
     enabled=1
     auto_start=1
-    
+
     # Read options from UCI config
     config_get fallback_register settings fallback_register 1
-    config_get debug settings debug 0
     config_get enabled settings enabled 1
     config_get auto_start settings auto_start 1
 }
