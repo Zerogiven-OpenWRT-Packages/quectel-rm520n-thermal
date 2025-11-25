@@ -34,6 +34,12 @@ This project provides a comprehensive set of tools and kernel modules for monito
 - **Fallback Mechanisms**: Works without Device Tree for basic monitoring on systems without DT support.
 - **Open Source**: Licensed under the GNU General Public License for maximum flexibility.
 
+## Screenshot
+
+![Quectel RM520N Thermal Management in Action](Screenshot.png)
+
+*Screenshot showing the thermal management system in action: kernel sysfs interface, hwmon integration, sensors output displaying temperature thresholds, and daemon logs updating temperature values.*
+
 ## Components
 
 - **Kernel Modules**: Three specialized modules for sysfs, thermal sensors, and hwmon integration
