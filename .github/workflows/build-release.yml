@@ -78,7 +78,7 @@ jobs:
           output_directory: ${{ github.workspace }}/release-assets
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk
           path: ${{ github.workspace }}/release-assets/*.ipk
