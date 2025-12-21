@@ -1,15 +1,12 @@
 name: Build OpenWRT package (release)
 
-# Trigger on version tags only
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0, v1.0.1, etc.
+      - 'v*'
 
 jobs:
   build-packages:
-    name: Build OpenWrt ${{ matrix.openwrt_version }} ${{ matrix.arch }} Package
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
@@ -19,105 +16,39 @@ jobs:
             arch: 'x86_64'
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.3'
-            arch: 'arm_cortex-a9'
+            arch: 'aarch64_cortex-a53'
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.3'
-            arch: 'aarch64_cortex-a53'
+            arch: 'aarch64_cortex-a72'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'arm_cortex-a7'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'arm_cortex-a9'
       fail-fast: false
 
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      tag_name: ${{ steps.get_version.outputs.version_tag }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          path: ${{ github.workspace }}/feed/quectel-rm520n-thermal
-
-      - name: Get Version from Tag
-        id: get_version
-        uses: ChrSchu90/GitTagSemanticVersion@v1.1
-
-      - name: Create artifacts directory structure
-        run: |
-          rm -rf ${{ github.workspace }}/artifacts
-          mkdir -p ${{ github.workspace }}/artifacts
-
-      - name: Build OpenWrt ${{ matrix.openwrt_version }}-${{ matrix.arch }} package
-        id: build_package
-        uses: openwrt/gh-action-sdk@v9
-        env:
-          ARCH: ${{ matrix.arch }}-${{ matrix.openwrt_build_version }}
-          PACKAGES: quectel-rm520n-thermal
-          V: 0
-          FEED_DIR: ${{ github.workspace }}/feed
-          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
-
-      - name: Copy files
-        id: package_info
-        uses: Zerogiven/gh-action-owrt-copy-package@main
-        with:
-          artifacts_path: ${{ github.workspace }}/artifacts/bin/
-          files: |
-            [
-              {
-                "search": "kmod-quectel-rm520n-thermal*.ipk",
-                "name": "kmod-quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
-              },
-              {
-                "search": "quectel-rm520n-thermal*.ipk",
-                "name": "quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
-              },
-              {
-                "search": "prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk",
-                "name": "prometheus-node-exporter-ucode-quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk"
-              }
-            ]
-          output_directory: ${{ github.workspace }}/release-assets
-
-      - name: Upload package artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: quectel-rm520n-thermal-${{ steps.get_version.outputs.version }}-${{ matrix.openwrt_version }}-${{ matrix.arch }}.ipk
-          path: ${{ github.workspace }}/release-assets/*.ipk
-          retention-days: 30
+    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
+    with:
+      package_name: 'quectel-rm520n-thermal'
+      sdk_packages: 'quectel-rm520n-thermal'
+      artifacts_patterns: |
+        kmod-quectel-rm520n-thermal*.ipk
+        quectel-rm520n-thermal*.ipk
+        prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk
+      openwrt_version: ${{ matrix.openwrt_version }}
+      openwrt_build_version: ${{ matrix.openwrt_build_version }}
+      arch: ${{ matrix.arch }}
+      verbose: false
 
   create-release:
-    name: Create GitHub Release
     needs: build-packages
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Download all package artifacts
-        uses: actions/download-artifact@v6
-        with:
-          path: ${{ github.workspace }}/release-assets/
-          pattern: quectel-rm520n-thermal-*.ipk
-          merge-multiple: true
-
-      - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.build-packages.outputs.tag_name }}
-          files: |
-            ${{ github.workspace }}/release-assets/*.ipk
-          preserve_order: true
-          draft: false
-          prerelease: false
-          fail_on_unmatched_files: true
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.OWRT_PACKAGE_RELEASE_TOKEN }}
-
-      - name: Release Summary
-        run: |
-          CURRENT_VERSION=${GITHUB_REF#refs/tags/v}
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Release Created**: v$CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release URL**: https://github.com/${{ github.repository }}/releases/tag/v$CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
-
- 
+    permissions:
+      contents: write
+    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-release.yml@main
+    with:
+      artifact_pattern: 'quectel-rm520n-thermal-*'
+      release_file_pattern: '*.ipk'
+      tag_name: ${{ github.ref_name }}
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.OWRT_PACKAGE_RELEASE_TOKEN }}
