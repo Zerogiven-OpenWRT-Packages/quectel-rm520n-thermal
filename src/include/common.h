@@ -86,4 +86,27 @@
 #define MODULE_LINE_LEN      128      /* Module info line length */
 #define PATTERN_LEN          128      /* Temperature pattern string length */
 
+/* ============================================================================
+ * DAEMON CONFIGURATION CONSTANTS
+ * ============================================================================ */
+
+/* Serial port reconnection settings */
+#define SERIAL_MAX_RECONNECT_ATTEMPTS  5    /* Maximum retry attempts */
+#define SERIAL_INITIAL_RECONNECT_DELAY 10   /* Initial delay in seconds */
+#define SERIAL_MAX_RECONNECT_DELAY     60   /* Maximum delay in seconds */
+
+/* Daemon timing intervals */
+#define STATS_LOG_INTERVAL             100  /* Log stats every N iterations */
+#define CONFIG_CHECK_INTERVAL          60   /* Check UCI config every N seconds */
+
+/* ============================================================================
+ * HELPER MACROS
+ * ============================================================================ */
+
+/* Safe string copy with null termination - prevents buffer overflows */
+#define SAFE_STRNCPY(dst, src, size) do { \
+    strncpy(dst, src, (size) - 1); \
+    (dst)[(size) - 1] = '\0'; \
+} while(0)
+
 #endif /* KMOD_COMMON_H */
