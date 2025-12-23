@@ -26,12 +26,6 @@
 #include "include/system.h"
 #include "include/uci_config.h"
 
-/* Helper macro for safe string copying with null termination */
-#define SAFE_STRNCPY(dst, src, size) do { \
-    strncpy(dst, src, size - 1); \
-    dst[size - 1] = '\0'; \
-} while(0)
-
 /* External variables from main.c */
 extern config_t config;
 
@@ -80,66 +74,6 @@ static void daemon_cleanup(void)
 
     // Release daemon lock
     release_daemon_lock();
-}
-
-/* ============================================================================
- * HELPER FUNCTIONS
- * ============================================================================ */
-
-/**
- * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
- * @path_buf: Buffer to store the path
- * @buf_size: Size of the buffer
- *
- * Dynamically discovers the hwmon device number for quectel_rm520n by
- * scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
- *
- * @return 0 on success, -1 on failure
- */
-static int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
-{
-    DIR *hwmon_dir;
-    struct dirent *entry;
-    int found = 0;
-
-    if (!path_buf || buf_size == 0) {
-        return -1;
-    }
-
-    hwmon_dir = opendir("/sys/class/hwmon");
-    if (!hwmon_dir) {
-        return -1;
-    }
-
-    while ((entry = readdir(hwmon_dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        char name_path[PATH_MAX_LEN];
-        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
-            continue;
-        }
-
-        FILE *name_fp = fopen(name_path, "r");
-        if (name_fp) {
-            char dev_name[DEVICE_NAME_LEN];
-            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
-                dev_name[strcspn(dev_name, "\n")] = '\0';
-                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
-                    fclose(name_fp);
-                    if (snprintf(path_buf, buf_size, "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)buf_size) {
-                        found = 1;
-                        logging_debug("Found quectel hwmon device: %s", path_buf);
-                        break;
-                    }
-                }
-            }
-            fclose(name_fp);
-        }
-    }
-    closedir(hwmon_dir);
-
-    return found ? 0 : -1;
 }
 
 /* ============================================================================
@@ -261,8 +195,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     
     // Main daemon loop
     int serial_reconnect_attempts = 0;
-    const int max_reconnect_attempts = 5;
-    int reconnect_delay = 10;
+    int reconnect_delay = SERIAL_INITIAL_RECONNECT_DELAY;
     g_serial_fd = -1;  // Use global for emergency cleanup access
 
     // Find hwmon path once (cached for performance)
@@ -286,7 +219,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
         // Update kernel module thresholds from UCI config (if changed)
         static time_t last_config_check = 0;
         time_t current_time = time(NULL);
-        if (current_time - last_config_check >= 60) { // Check every minute
+        if (current_time - last_config_check >= CONFIG_CHECK_INTERVAL) {
             logging_debug("Checking for UCI config changes...");
 
             // Store current config for comparison
@@ -349,21 +282,23 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
             g_serial_fd = init_serial_port(loop_config.serial_port, loop_config.baud_rate);
             if (g_serial_fd < 0) {
                 g_stats.serial_errors++;
-                if (serial_reconnect_attempts < max_reconnect_attempts) {
+                if (serial_reconnect_attempts < SERIAL_MAX_RECONNECT_ATTEMPTS) {
                     serial_reconnect_attempts++;
                     logging_warning("Serial port init failed, retry %d/%d in %d seconds",
-                                   serial_reconnect_attempts, max_reconnect_attempts, reconnect_delay);
+                                   serial_reconnect_attempts, SERIAL_MAX_RECONNECT_ATTEMPTS, reconnect_delay);
                     sleep(reconnect_delay);
                     reconnect_delay *= 2; // Exponential backoff
-                    if (reconnect_delay > 60) reconnect_delay = 60; // Cap at 60 seconds
+                    if (reconnect_delay > SERIAL_MAX_RECONNECT_DELAY) {
+                        reconnect_delay = SERIAL_MAX_RECONNECT_DELAY;
+                    }
                     continue;
                 }
                 logging_error("Failed to initialize serial port after %d attempts, continuing with error reporting",
-                             max_reconnect_attempts);
+                             SERIAL_MAX_RECONNECT_ATTEMPTS);
             } else {
                 logging_info("Serial port initialized successfully");
                 serial_reconnect_attempts = 0;
-                reconnect_delay = 10;
+                reconnect_delay = SERIAL_INITIAL_RECONNECT_DELAY;
             }
         }
         
@@ -381,7 +316,15 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     int best_temp = modem_temp;
                     if (ap_temp > best_temp) best_temp = ap_temp;
                     if (pa_temp > best_temp) best_temp = pa_temp;
-                    
+
+                    // Validate temperature range before conversion to prevent overflow
+                    if (best_temp < (TEMP_ABSOLUTE_MIN / 1000) || best_temp > (TEMP_ABSOLUTE_MAX / 1000)) {
+                        logging_warning("Temperature %d°C out of valid range (%d to %d°C), skipping",
+                                       best_temp, TEMP_ABSOLUTE_MIN / 1000, TEMP_ABSOLUTE_MAX / 1000);
+                        g_stats.parse_errors++;
+                        continue;
+                    }
+
                     // Convert to millidegrees and write to kernel interfaces
                     int best_temp_mdeg = best_temp * 1000;
                     char temp_str[32];
@@ -549,8 +492,8 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
             }
         }
 
-        // Log statistics periodically (every 100 iterations)
-        if (g_stats.total_iterations % 100 == 0) {
+        // Log statistics periodically
+        if (g_stats.total_iterations % STATS_LOG_INTERVAL == 0) {
             double success_rate = g_stats.total_iterations > 0
                 ? (100.0 * g_stats.successful_reads / g_stats.total_iterations)
                 : 0.0;
