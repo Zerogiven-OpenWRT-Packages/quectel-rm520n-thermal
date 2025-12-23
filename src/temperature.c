@@ -18,6 +18,14 @@
 #include "include/logging.h"
 
 /* ============================================================================
+ * TEMPERATURE VALIDATION CONSTANTS
+ * ============================================================================ */
+
+/* Temperature validation range (in °C) - matches kernel TEMP_ABSOLUTE_MIN/MAX */
+#define TEMP_VALID_MIN  (TEMP_ABSOLUTE_MIN / 1000)  /* -40°C */
+#define TEMP_VALID_MAX  (TEMP_ABSOLUTE_MAX / 1000)  /* 125°C */
+
+/* ============================================================================
  * TEMPERATURE PROCESSING FUNCTIONS
  * ============================================================================ */
 
@@ -179,18 +187,21 @@ int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int
     }
     
     /* Validate extracted temperatures (basic sanity check) */
-    if (modem_temp && (*modem_temp < -40 || *modem_temp > 120)) {
-        logging_warning("Modem temperature out of range: %d°C", *modem_temp);
+    if (modem_temp && (*modem_temp < TEMP_VALID_MIN || *modem_temp > TEMP_VALID_MAX)) {
+        logging_warning("Modem temperature out of range: %d°C (valid: %d to %d)",
+                       *modem_temp, TEMP_VALID_MIN, TEMP_VALID_MAX);
         return 0;
     }
-    
-    if (ap_temp && (*ap_temp < -40 || *ap_temp > 120)) {
-        logging_warning("AP temperature out of range: %d°C", *ap_temp);
+
+    if (ap_temp && (*ap_temp < TEMP_VALID_MIN || *ap_temp > TEMP_VALID_MAX)) {
+        logging_warning("AP temperature out of range: %d°C (valid: %d to %d)",
+                       *ap_temp, TEMP_VALID_MIN, TEMP_VALID_MAX);
         return 0;
     }
-    
-    if (pa_temp && (*pa_temp < -40 || *pa_temp > 120)) {
-        logging_warning("PA temperature out of range: %d°C", *pa_temp);
+
+    if (pa_temp && (*pa_temp < TEMP_VALID_MIN || *pa_temp > TEMP_VALID_MAX)) {
+        logging_warning("PA temperature out of range: %d°C (valid: %d to %d)",
+                       *pa_temp, TEMP_VALID_MIN, TEMP_VALID_MAX);
         return 0;
     }
     
