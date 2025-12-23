@@ -136,19 +136,20 @@ void release_daemon_lock(void)
 
 /**
  * Signal handler for graceful shutdown
- * 
+ *
  * Handles SIGTERM and SIGINT signals to ensure graceful daemon shutdown.
- * Sets shutdown flag and logs the event for proper service management.
- * 
+ * Only sets the shutdown flag - logging is done in the main loop after
+ * detecting the flag to maintain async-signal-safety.
+ *
  * Following clig.dev guidelines for signal handling and graceful
  * shutdown procedures.
- * 
+ *
  * @param sig Signal number received
  */
 void signal_handler(int sig)
 {
     if (sig == SIGTERM || sig == SIGINT) {
-        logging_info("Received signal %d, initiating graceful shutdown", sig);
-        shutdown_requested = 1; // Set the global shutdown flag
+        /* Only set flag - do not call non-async-signal-safe functions */
+        shutdown_requested = 1;
     }
 }
