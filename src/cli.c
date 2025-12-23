@@ -17,15 +17,10 @@
 #include <dirent.h>
 #include "include/logging.h"
 #include "include/config.h"
+#include "include/common.h"
 #include "include/serial.h"
 #include "include/temperature.h"
 #include "include/system.h"
-
-/* Helper macro for safe string copying with null termination */
-#define SAFE_STRNCPY(dst, src, size) do { \
-    strncpy(dst, src, size - 1); \
-    dst[size - 1] = '\0'; \
-} while(0)
 
 /* External variables from main.c */
 extern config_t config;
@@ -48,6 +43,9 @@ extern config_t config;
  *
  * Discovers the hwmon device path for quectel_rm520n and caches the result
  * for subsequent calls to avoid repeated directory scans.
+ *
+ * Note: This function uses static caching and is not thread-safe.
+ * This is acceptable for the single-threaded CLI tool.
  *
  * @return 0 on success, -1 on failure
  */
@@ -235,7 +233,17 @@ int cli_mode(char *temp_str, size_t temp_size)
             int best_temp = modem_temp;
             if (ap_temp > best_temp) best_temp = ap_temp;
             if (pa_temp > best_temp) best_temp = pa_temp;
-            
+
+            // Validate temperature range before conversion to prevent overflow
+            if (best_temp < (TEMP_ABSOLUTE_MIN / 1000) || best_temp > (TEMP_ABSOLUTE_MAX / 1000)) {
+                logging_warning("Temperature %d°C out of valid range (%d to %d°C)",
+                               best_temp, TEMP_ABSOLUTE_MIN / 1000, TEMP_ABSOLUTE_MAX / 1000);
+                status = "Error: Temperature out of range";
+                SAFE_STRNCPY(temp_str, "N/A", temp_size);
+                close_serial_port(fd);
+                goto output_result;
+            }
+
             // Convert to millidegrees (same format as daemon output)
             int best_temp_mdeg = best_temp * 1000;
             if (snprintf(temp_str, temp_size, "%d", best_temp_mdeg) >= (int)temp_size) {
