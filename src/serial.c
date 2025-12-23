@@ -62,8 +62,9 @@ static int validate_serial_params(int fd, const char *buf, size_t buflen)
 int init_serial_port(const char *port, speed_t baud_rate)
 {
     int fd;
+    int flags;
     struct termios tty;
-    
+
     /* Validate input parameters */
     if (!port) {
         errno = EINVAL;
@@ -116,11 +117,16 @@ int init_serial_port(const char *port, speed_t baud_rate)
     }
     
     /* Set back to blocking mode for normal operation */
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags >= 0) {
-        fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0) {
+        close(fd);
+        return -1;
     }
-    
+    if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0) {
+        close(fd);
+        return -1;
+    }
+
     return fd;
 }
 
