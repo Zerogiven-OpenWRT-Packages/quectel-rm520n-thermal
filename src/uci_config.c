@@ -25,7 +25,7 @@
  * CONSTANTS & CONFIGURATION
  * ============================================================================ */
 
-#define SYSFS_BASE "/sys/kernel/quectel_rm520n"
+#define SYSFS_BASE "/sys/kernel/quectel_rm520n_thermal"
 #define HWMON_BASE "/sys/class/hwmon"
 #define UCI_CONFIG "quectel_rm520n_thermal"
 #define UCI_SECTION "settings"
@@ -169,7 +169,7 @@ static int find_quectel_hwmon_device(void)
             if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
                 dev_name[strcspn(dev_name, "\n")] = '\0';
                 logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
-                if (strcmp(dev_name, "quectel_rm520n") == 0) {
+                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
                     // Verify this device actually has Quectel attributes
                     char verify_path[256];
                     if (snprintf(verify_path, sizeof(verify_path), "%s/%s/temp1_input", HWMON_BASE, entry->d_name) < sizeof(verify_path)) {
@@ -185,7 +185,7 @@ static int find_quectel_hwmon_device(void)
                                 logging_warning("Failed to extract hwmon number from: %s", entry->d_name);
                             }
                         } else {
-                            logging_debug("Found hwmon device with name 'quectel_rm520n' but no temp1_input: %s", entry->d_name);
+                            logging_debug("Found hwmon device with name 'quectel_rm520n_thermal' but no temp1_input: %s", entry->d_name);
                         }
                     }
                 }
@@ -754,7 +754,7 @@ int uci_config_mode(void)
                     if (alt_name_fp) {
                         if (fgets(alt_dev_name, sizeof(alt_dev_name), alt_name_fp) != NULL) {
                             alt_dev_name[strcspn(alt_dev_name, "\n")] = '\0';
-                            if (strcmp(alt_dev_name, "quectel_rm520n") == 0) {
+                            if (strcmp(alt_dev_name, "quectel_rm520n_thermal") == 0) {
                                 int alt_hwmon_num = atoi(alt_entry->d_name);
                                 logging_info("Alternative detection found: hwmon%d", alt_hwmon_num);
                                 
