@@ -17,6 +17,7 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/version.h>
+#include <linux/mutex.h>
 
 /* Package metadata definitions */
 #include "../include/common.h"
@@ -40,6 +41,9 @@ static int modem_temp = DEFAULT_TEMP_DEFAULT;
 static unsigned long total_updates = 0;
 static unsigned long last_update_time = 0;
 
+/* Mutex for thread-safe access to temperature data */
+static DEFINE_MUTEX(temp_lock);
+
 /**
  * temp_show - Sysfs read function for current temperature
  * @kobj: Kernel object pointer
@@ -53,15 +57,20 @@ static unsigned long last_update_time = 0;
  */
 static ssize_t temp_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    int temp;
     (void)kobj;
     (void)attr;
-    
+
     /* Validate output buffer */
     if (!buf) {
         return -EINVAL;
     }
-    
-    return scnprintf(buf, PAGE_SIZE, "%d\n", modem_temp);
+
+    mutex_lock(&temp_lock);
+    temp = modem_temp;
+    mutex_unlock(&temp_lock);
+
+    return scnprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
 
 /**
@@ -89,15 +98,17 @@ static ssize_t temp_store(struct kobject *kobj, struct kobj_attribute *attr, con
     
     /* Parse the temperature value from the buffer */
     if (kstrtoint(buf, 10, &value) == 0) {
+        mutex_lock(&temp_lock);
         /* Store the temperature value in m°C */
         modem_temp = value;
         /* Update statistics */
         total_updates++;
         last_update_time = jiffies / HZ;  /* Convert jiffies to seconds */
+        mutex_unlock(&temp_lock);
         /* Temperature updated successfully */
         return count;
     }
-    
+
     pr_err("Quectel RM520N: Failed to parse temperature value from input\n");
     return -EINVAL;
 }
@@ -115,15 +126,20 @@ static ssize_t temp_store(struct kobject *kobj, struct kobj_attribute *attr, con
  */
 static ssize_t temp_min_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    int val;
     (void)kobj;
     (void)attr;
-    
+
     /* Validate output buffer */
     if (!buf) {
         return -EINVAL;
     }
-    
-    return scnprintf(buf, PAGE_SIZE, "%d\n", temp_min);
+
+    mutex_lock(&temp_lock);
+    val = temp_min;
+    mutex_unlock(&temp_lock);
+
+    return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /**
@@ -138,15 +154,20 @@ static ssize_t temp_min_show(struct kobject *kobj, struct kobj_attribute *attr, 
  */
 static ssize_t temp_max_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    int val;
     (void)kobj;
     (void)attr;
-    
+
     /* Validate output buffer */
     if (!buf) {
         return -EINVAL;
     }
-    
-    return scnprintf(buf, PAGE_SIZE, "%d\n", temp_max);
+
+    mutex_lock(&temp_lock);
+    val = temp_max;
+    mutex_unlock(&temp_lock);
+
+    return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /**
@@ -161,15 +182,20 @@ static ssize_t temp_max_show(struct kobject *kobj, struct kobj_attribute *attr, 
  */
 static ssize_t temp_crit_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    int val;
     (void)kobj;
     (void)attr;
-    
+
     /* Validate output buffer */
     if (!buf) {
         return -EINVAL;
     }
-    
-    return scnprintf(buf, PAGE_SIZE, "%d\n", temp_crit);
+
+    mutex_lock(&temp_lock);
+    val = temp_crit;
+    mutex_unlock(&temp_lock);
+
+    return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /**
@@ -184,15 +210,20 @@ static ssize_t temp_crit_show(struct kobject *kobj, struct kobj_attribute *attr,
  */
 static ssize_t temp_default_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    int val;
     (void)kobj;
     (void)attr;
-    
+
     /* Validate output buffer */
     if (!buf) {
         return -EINVAL;
     }
-    
-    return scnprintf(buf, PAGE_SIZE, "%d\n", temp_default);
+
+    mutex_lock(&temp_lock);
+    val = temp_default;
+    mutex_unlock(&temp_lock);
+
+    return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 /* Temperature threshold store functions */
@@ -211,6 +242,7 @@ static ssize_t temp_default_show(struct kobject *kobj, struct kobj_attribute *at
 static ssize_t temp_min_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     int value;
+    int current_max;
     (void)kobj;
     (void)attr;
 
@@ -218,25 +250,29 @@ static ssize_t temp_min_store(struct kobject *kobj, struct kobj_attribute *attr,
     if (!buf || count == 0) {
         return -EINVAL;
     }
-    
+
     if (kstrtoint(buf, 10, &value) == 0) {
         if (value < TEMP_ABSOLUTE_MIN) {
-            pr_err("Quectel RM520N: temp_min value %d m°C below absolute minimum %d m°C\n", 
+            pr_err("Quectel RM520N: temp_min value %d m°C below absolute minimum %d m°C\n",
                    value, TEMP_ABSOLUTE_MIN);
             return -EINVAL;
         }
-        
-        if (value > temp_max) {
-            pr_err("Quectel RM520N: temp_min value %d m°C cannot exceed temp_max %d m°C\n", 
-                   value, temp_max);
+
+        mutex_lock(&temp_lock);
+        current_max = temp_max;
+        if (value > current_max) {
+            mutex_unlock(&temp_lock);
+            pr_err("Quectel RM520N: temp_min value %d m°C cannot exceed temp_max %d m°C\n",
+                   value, current_max);
             return -EINVAL;
         }
-        
+
         temp_min = value;
-        pr_info("Quectel RM520N: Updated temp_min to %d m°C\n", temp_min);
+        mutex_unlock(&temp_lock);
+        pr_info("Quectel RM520N: Updated temp_min to %d m°C\n", value);
         return count;
     }
-    
+
     pr_err("Quectel RM520N: Failed to parse temp_min value from input\n");
     return -EINVAL;
 }
@@ -256,6 +292,7 @@ static ssize_t temp_min_store(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t temp_max_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     int value;
+    int current_min;
     (void)kobj;
     (void)attr;
 
@@ -263,25 +300,29 @@ static ssize_t temp_max_store(struct kobject *kobj, struct kobj_attribute *attr,
     if (!buf || count == 0) {
         return -EINVAL;
     }
-    
+
     if (kstrtoint(buf, 10, &value) == 0) {
-        if (value < temp_min) {
-            pr_err("Quectel RM520N: temp_max value %d m°C cannot be below temp_min %d m°C\n", 
-                   value, temp_min);
-            return -EINVAL;
-        }
-        
         if (value > TEMP_ABSOLUTE_MAX) {
-            pr_err("Quectel RM520N: temp_max value %d m°C above absolute maximum %d m°C\n", 
+            pr_err("Quectel RM520N: temp_max value %d m°C above absolute maximum %d m°C\n",
                    value, TEMP_ABSOLUTE_MAX);
             return -EINVAL;
         }
-        
+
+        mutex_lock(&temp_lock);
+        current_min = temp_min;
+        if (value < current_min) {
+            mutex_unlock(&temp_lock);
+            pr_err("Quectel RM520N: temp_max value %d m°C cannot be below temp_min %d m°C\n",
+                   value, current_min);
+            return -EINVAL;
+        }
+
         temp_max = value;
-        pr_info("Quectel RM520N: Updated temp_max to %d m°C\n", temp_max);
+        mutex_unlock(&temp_lock);
+        pr_info("Quectel RM520N: Updated temp_max to %d m°C\n", value);
         return count;
     }
-    
+
     pr_err("Quectel RM520N: Failed to parse temp_max value from input\n");
     return -EINVAL;
 }
@@ -301,6 +342,7 @@ static ssize_t temp_max_store(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t temp_crit_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     int value;
+    int current_max;
     (void)kobj;
     (void)attr;
 
@@ -308,25 +350,29 @@ static ssize_t temp_crit_store(struct kobject *kobj, struct kobj_attribute *attr
     if (!buf || count == 0) {
         return -EINVAL;
     }
-    
+
     if (kstrtoint(buf, 10, &value) == 0) {
-        if (value < temp_max) {
-            pr_err("Quectel RM520N: temp_crit value %d m°C cannot be below temp_max %d m°C\n", 
-                   value, temp_max);
-            return -EINVAL;
-        }
-        
         if (value > TEMP_ABSOLUTE_MAX) {
-            pr_err("Quectel RM520N: temp_crit value %d m°C above absolute maximum %d m°C\n", 
+            pr_err("Quectel RM520N: temp_crit value %d m°C above absolute maximum %d m°C\n",
                    value, TEMP_ABSOLUTE_MAX);
             return -EINVAL;
         }
-        
+
+        mutex_lock(&temp_lock);
+        current_max = temp_max;
+        if (value < current_max) {
+            mutex_unlock(&temp_lock);
+            pr_err("Quectel RM520N: temp_crit value %d m°C cannot be below temp_max %d m°C\n",
+                   value, current_max);
+            return -EINVAL;
+        }
+
         temp_crit = value;
-        pr_info("Quectel RM520N: Updated temp_crit to %d m°C\n", temp_crit);
+        mutex_unlock(&temp_lock);
+        pr_info("Quectel RM520N: Updated temp_crit to %d m°C\n", value);
         return count;
     }
-    
+
     pr_err("Quectel RM520N: Failed to parse temp_crit value from input\n");
     return -EINVAL;
 }
@@ -343,6 +389,8 @@ static ssize_t temp_crit_store(struct kobject *kobj, struct kobj_attribute *attr
  */
 static ssize_t stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
+    unsigned long updates;
+    unsigned long update_time;
     (void)kobj;
     (void)attr;
 
@@ -351,8 +399,13 @@ static ssize_t stats_show(struct kobject *kobj, struct kobj_attribute *attr, cha
         return -EINVAL;
     }
 
+    mutex_lock(&temp_lock);
+    updates = total_updates;
+    update_time = last_update_time;
+    mutex_unlock(&temp_lock);
+
     return scnprintf(buf, PAGE_SIZE, "total_updates: %lu\nlast_update_time: %lu\n",
-                     total_updates, last_update_time);
+                     updates, update_time);
 }
 
 /**
@@ -370,6 +423,8 @@ static ssize_t stats_show(struct kobject *kobj, struct kobj_attribute *attr, cha
 static ssize_t temp_default_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
     int value;
+    int current_min;
+    int current_max;
     (void)kobj;
     (void)attr;
 
@@ -377,25 +432,32 @@ static ssize_t temp_default_store(struct kobject *kobj, struct kobj_attribute *a
     if (!buf || count == 0) {
         return -EINVAL;
     }
-    
+
     if (kstrtoint(buf, 10, &value) == 0) {
-        if (value < temp_min) {
-            pr_err("Quectel RM520N: temp_default value %d m°C cannot be below temp_min %d m°C\n", 
-                   value, temp_min);
+        mutex_lock(&temp_lock);
+        current_min = temp_min;
+        current_max = temp_max;
+
+        if (value < current_min) {
+            mutex_unlock(&temp_lock);
+            pr_err("Quectel RM520N: temp_default value %d m°C cannot be below temp_min %d m°C\n",
+                   value, current_min);
             return -EINVAL;
         }
-        
-        if (value > temp_max) {
-            pr_err("Quectel RM520N: temp_default value %d m°C cannot exceed temp_max %d m°C\n", 
-                   value, temp_max);
+
+        if (value > current_max) {
+            mutex_unlock(&temp_lock);
+            pr_err("Quectel RM520N: temp_default value %d m°C cannot exceed temp_max %d m°C\n",
+                   value, current_max);
             return -EINVAL;
         }
-        
+
         temp_default = value;
-        pr_info("Quectel RM520N: Updated temp_default to %d m°C\n", temp_default);
+        mutex_unlock(&temp_lock);
+        pr_info("Quectel RM520N: Updated temp_default to %d m°C\n", value);
         return count;
     }
-    
+
     pr_err("Quectel RM520N: Failed to parse temp_default value from input\n");
     return -EINVAL;
 }
