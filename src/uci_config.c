@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
+#include <uci.h>
 #include "include/logging.h"
 
 /* ============================================================================
@@ -65,8 +66,11 @@ static int extract_hwmon_number(const char *dir_name)
  * ============================================================================ */
 
 /**
- * Read a UCI configuration value
- * 
+ * Read a UCI configuration value using UCI C library
+ *
+ * Uses the UCI C library directly instead of popen() to avoid
+ * command injection vulnerabilities.
+ *
  * @param option Option name to read
  * @param buffer Buffer to store the value
  * @param buffer_size Size of the buffer
@@ -74,34 +78,46 @@ static int extract_hwmon_number(const char *dir_name)
  */
 static int read_uci_option(const char *option, char *buffer, size_t buffer_size)
 {
-    char command[256];
-    FILE *fp;
-    
-    // Build uci get command
-    if (snprintf(command, sizeof(command), "uci -q get %s.%s.%s", 
-                 UCI_CONFIG, UCI_SECTION, option) >= sizeof(command)) {
-        fprintf(stderr, "Error: UCI command too long\n");
+    struct uci_context *ctx;
+    struct uci_package *pkg;
+    struct uci_section *section;
+    const char *value;
+
+    if (!option || !buffer || buffer_size == 0) {
         return -1;
     }
-    
-    // Execute uci command
-    fp = popen(command, "r");
-    if (!fp) {
-        fprintf(stderr, "Error: Failed to execute uci command\n");
+
+    ctx = uci_alloc_context();
+    if (!ctx) {
+        logging_error("Failed to allocate UCI context");
         return -1;
     }
-    
-    // Read the result
-    if (fgets(buffer, buffer_size, fp) == NULL) {
-        pclose(fp);
-        return -1; // Option not found or empty
+
+    if (uci_load(ctx, UCI_CONFIG, &pkg) != UCI_OK) {
+        logging_debug("Failed to load UCI package '%s'", UCI_CONFIG);
+        uci_free_context(ctx);
+        return -1;
     }
-    
-    pclose(fp);
-    
-    // Remove trailing newline
-    buffer[strcspn(buffer, "\n")] = '\0';
-    
+
+    section = uci_lookup_section(ctx, pkg, UCI_SECTION);
+    if (!section) {
+        logging_debug("UCI section '%s' not found", UCI_SECTION);
+        uci_free_context(ctx);
+        return -1;
+    }
+
+    value = uci_lookup_option_string(ctx, section, option);
+    if (!value) {
+        logging_debug("UCI option '%s' not found", option);
+        uci_free_context(ctx);
+        return -1;
+    }
+
+    /* Copy value to buffer safely */
+    strncpy(buffer, value, buffer_size - 1);
+    buffer[buffer_size - 1] = '\0';
+
+    uci_free_context(ctx);
     return 0;
 }
 
@@ -565,27 +581,14 @@ int uci_config_mode(void)
                             fclose(fp);
                         }
                     } else {
-                        logging_error("Failed to open file for writing: %s (errno: %d)", hwmon_path, errno);
-                        
-                        // Try alternative method: shell command
-                        logging_info("Attempting alternative update method using shell command...");
-                        char shell_cmd[512];
-                        if (snprintf(shell_cmd, sizeof(shell_cmd), "echo %d > %s", temp_min, hwmon_path) < sizeof(shell_cmd)) {
-                            int cmd_result = system(shell_cmd);
-                            if (cmd_result == 0) {
-                                logging_info("Successfully updated hwmon temp1_min to %d m°C (%0.1f°C) via shell command", temp_min, temp_min / 1000.0f);
-                                hwmon_updated++;
-                            } else {
-                                logging_error("Shell command failed with exit code %d", cmd_result);
-                            }
-                        }
+                        logging_warning("Failed to open hwmon temp1_min for writing: %s", hwmon_path);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_min file not writable: %s (errno: %d)", hwmon_path, errno);
+                    logging_warning("Hwmon temp1_min file not writable: %s", hwmon_path);
                 }
             }
         }
-        
+
         // Update temp1_max
         if (read_uci_option(UCI_TEMP_MAX, uci_value, sizeof(uci_value)) == 0) {
             temp_max = celsius_to_millidegrees(uci_value);
@@ -605,27 +608,14 @@ int uci_config_mode(void)
                             fclose(fp);
                         }
                     } else {
-                        logging_error("Failed to open file for writing: %s (errno: %d)", hwmon_path, errno);
-                        
-                        // Try alternative method: shell command
-                        logging_info("Attempting alternative update method using shell command...");
-                        char shell_cmd[512];
-                        if (snprintf(shell_cmd, sizeof(shell_cmd), "echo %d > %s", temp_max, hwmon_path) < sizeof(shell_cmd)) {
-                            int cmd_result = system(shell_cmd);
-                            if (cmd_result == 0) {
-                                logging_info("Successfully updated hwmon temp1_max to %d m°C (%0.1f°C) via shell command", temp_max, temp_max / 1000.0f);
-                                hwmon_updated++;
-                            } else {
-                                logging_error("Shell command failed with exit code %d", cmd_result);
-                            }
-                        }
+                        logging_warning("Failed to open hwmon temp1_max for writing: %s", hwmon_path);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_max file not writable: %s (errno: %d)", hwmon_path, errno);
+                    logging_warning("Hwmon temp1_max file not writable: %s", hwmon_path);
                 }
             }
         }
-        
+
         // Update temp1_crit
         if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
             temp_crit = celsius_to_millidegrees(uci_value);
@@ -645,27 +635,14 @@ int uci_config_mode(void)
                             fclose(fp);
                         }
                     } else {
-                        logging_error("Failed to open file for writing: %s (errno: %d)", hwmon_path, errno);
-                        
-                        // Try alternative method: shell command
-                        logging_info("Attempting alternative update method using shell command...");
-                        char shell_cmd[512];
-                        if (snprintf(shell_cmd, sizeof(shell_cmd), "echo %d > %s", temp_crit, hwmon_path) < sizeof(shell_cmd)) {
-                            int cmd_result = system(shell_cmd);
-                            if (cmd_result == 0) {
-                                logging_info("Successfully updated hwmon temp1_crit to %d m°C (%0.1f°C) via shell command", temp_crit, temp_crit / 1000.0f);
-                                hwmon_updated++;
-                            } else {
-                                logging_error("Shell command failed with exit code %d", cmd_result);
-                            }
-                        }
+                        logging_warning("Failed to open hwmon temp1_crit for writing: %s", hwmon_path);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_crit file not writable: %s (errno: %d)", hwmon_path, errno);
+                    logging_warning("Hwmon temp1_crit file not writable: %s", hwmon_path);
                 }
             }
         }
-        
+
         // Summary of hwmon updates
         if (hwmon_updated > 0) {
             logging_info("Successfully updated %d hwmon threshold(s) in hwmon%d", hwmon_updated, hwmon_num);
@@ -737,56 +714,26 @@ int uci_config_mode(void)
         }
         
         if (fallback_updated > 0) {
-            logging_info("Fallback: Successfully updated %d threshold(s) via main sysfs interface", fallback_updated);
-            
-            // Try to reload the kernel module to apply new thresholds to hwmon
-            logging_debug("Attempting kernel module reload to apply new thresholds to hwmon...");
-            char reload_cmd[512];
-            if (snprintf(reload_cmd, sizeof(reload_cmd), "rmmod quectel_rm520n_temp_sensor_hwmon && insmod quectel_rm520n_temp_sensor_hwmon") < sizeof(reload_cmd)) {
-                logging_debug("Executing: %s", reload_cmd);
-                int reload_result = system(reload_cmd);
-                if (reload_result == 0) {
-                    logging_info("Successfully reloaded kernel module");
-                    
-                    // Wait a moment for the module to initialize
-                    sleep(1);
-                    
-                    // Check if the new values are now visible in hwmon
-                    if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, hwmon_num) < sizeof(hwmon_path)) {
-                        FILE *fp = fopen(hwmon_path, "r");
-                        if (fp) {
-                            int new_val;
-                            if (fscanf(fp, "%d", &new_val) == 1) {
-                                logging_debug("After reload: hwmon temp1_crit = %d m°C (%0.1f°C)", new_val, new_val / 1000.0f);
-                            }
-                            fclose(fp);
-                        }
-                    }
-                } else {
-                    logging_error("Failed to reload kernel module (exit code: %d)", reload_result);
-                }
-            }
+            logging_info("Successfully updated %d threshold(s) via main sysfs interface", fallback_updated);
         } else {
-            logging_warning("Fallback: No thresholds could be updated via any method");
+            logging_warning("No thresholds could be updated via main sysfs interface");
         }
-        
+
         // Final summary
         logging_info("=== UCI Configuration Update Summary ===");
         if (hwmon_updated > 0) {
-            logging_info("✓ Hwmon interface: %d threshold(s) updated directly", hwmon_updated);
+            logging_info("Hwmon interface: %d threshold(s) updated directly", hwmon_updated);
         } else {
-            logging_info("✗ Hwmon interface: No thresholds updated (files are read-only hardware limits)");
+            logging_info("Hwmon interface: No thresholds updated (files may be read-only)");
         }
-        
+
         if (fallback_updated > 0) {
-            logging_info("✓ Main sysfs interface: %d threshold(s) updated", fallback_updated);
-            logging_info("✓ Kernel module reload: Attempted to propagate changes to hwmon");
+            logging_info("Main sysfs interface: %d threshold(s) updated", fallback_updated);
         } else {
-            logging_info("✗ Main sysfs interface: No thresholds updated");
+            logging_info("Main sysfs interface: No thresholds updated");
         }
-        
-        logging_info("Note: Hwmon temp1_* files are hardware-defined limits and cannot be written directly");
-        logging_info("      Updates must go through the kernel module's main sysfs interface");
+
+        logging_info("Note: Hwmon files are typically read-only; main sysfs updates are authoritative");
         logging_info("================================================");
     } else {
         logging_info("Quectel hwmon device not found");
