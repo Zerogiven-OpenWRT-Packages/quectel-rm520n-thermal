@@ -6,8 +6,9 @@ import { readfile } from "fs";
 function read_sysfs(path) {
 	try {
 		let content = readfile(path);
-		if (content)
+		if (content != null) {
 			return trim(content);
+		}
 	} catch (e) {
 		// File doesn't exist or can't be read
 	}
@@ -31,44 +32,52 @@ function parse_stats(stats_content) {
 
 // Check if sysfs interface exists
 let temp = read_sysfs("/sys/kernel/quectel_rm520n_thermal/temp");
-if (!temp)
+if (temp == null) {
 	return false;
+}
 
 // Create gauge metrics
-let m_temp = gauge("quectel_modem_temperature_celsius");
-let m_temp_min = gauge("quectel_modem_temp_min_celsius");
-let m_temp_max = gauge("quectel_modem_temp_max_celsius");
-let m_temp_crit = gauge("quectel_modem_temp_crit_celsius");
-let m_updates = gauge("quectel_modem_updates_total");
-let m_last_update = gauge("quectel_modem_last_update_timestamp_seconds");
-let m_daemon = gauge("quectel_daemon_running");
+let m_temp = gauge("quectel_modem_temperature_celsius"); // ucode-lsp disable
+let m_temp_min = gauge("quectel_modem_temp_min_celsius"); // ucode-lsp disable
+let m_temp_max = gauge("quectel_modem_temp_max_celsius"); // ucode-lsp disable
+let m_temp_crit = gauge("quectel_modem_temp_crit_celsius"); // ucode-lsp disable
+let m_updates = gauge("quectel_modem_updates_total"); // ucode-lsp disable
+let m_last_update = gauge("quectel_modem_last_update_timestamp_seconds"); // ucode-lsp disable
+let m_daemon = gauge("quectel_daemon_running"); // ucode-lsp disable
 
 // Current temperature (convert from millidegrees to degrees)
-m_temp({}, int(temp) / 1000);
+if (temp) {
+	m_temp({}, int(temp) / 1000);
+}
 
 // Temperature thresholds
 let temp_min = read_sysfs("/sys/kernel/quectel_rm520n_thermal/temp_min");
-if (temp_min)
+if (temp_min) {
 	m_temp_min({}, int(temp_min) / 1000);
+}
 
 let temp_max = read_sysfs("/sys/kernel/quectel_rm520n_thermal/temp_max");
-if (temp_max)
+if (temp_max) {
 	m_temp_max({}, int(temp_max) / 1000);
+}
 
 let temp_crit = read_sysfs("/sys/kernel/quectel_rm520n_thermal/temp_crit");
-if (temp_crit)
+if (temp_crit) {
 	m_temp_crit({}, int(temp_crit) / 1000);
+}
 
 // Kernel module statistics
 let stats_content = read_sysfs("/sys/kernel/quectel_rm520n_thermal/stats");
 if (stats_content) {
 	let stats = parse_stats(stats_content);
 
-	if (stats.total_updates != null)
+	if (stats.total_updates != null) {
 		m_updates({}, stats.total_updates);
+	}
 
-	if (stats.last_update_time != null)
+	if (stats.last_update_time != null) {
 		m_last_update({}, stats.last_update_time);
+	}
 }
 
 // Check daemon status
