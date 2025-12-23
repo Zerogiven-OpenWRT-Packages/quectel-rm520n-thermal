@@ -88,7 +88,7 @@ int check_daemon_running(void)
  */
 int acquire_daemon_lock(void)
 {
-    daemon_lock_fd = open(LOCK_FILE, O_CREAT | O_RDWR, 0644);
+    daemon_lock_fd = open(LOCK_FILE, O_CREAT | O_RDWR, 0600);
     if (daemon_lock_fd < 0) {
         return -1;
     }
