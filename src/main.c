@@ -65,11 +65,6 @@
 #include "include/cli.h"
 #include "include/daemon.h"
 
-/* Helper macro for safe string copying with null termination */
-#define SAFE_STRNCPY(dst, src, size) do { \
-    strncpy(dst, src, size - 1); \
-    dst[size - 1] = '\0'; \
-} while(0)
 #include "include/uci_config.h"
 
 /* ============================================================================
