@@ -33,10 +33,30 @@ jobs:
             arch: 'aarch64_cortex-a72'
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
-            arch: 'arm_cortex-a7'
+            arch: 'arm_cortex-a7_neon-vfpv4'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'arm_cortex-a7_vfpv4'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.4'
+          #   arch: 'arm_cortex-a7'
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mediatek-filogic'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'bcm27xx-bcm2711'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mips_24kc'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mipsel_24kc'
       fail-fast: false
 
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
