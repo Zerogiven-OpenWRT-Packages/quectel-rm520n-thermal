@@ -78,10 +78,10 @@ static ssize_t temp_show(struct kobject *kobj, struct kobj_attribute *attr, char
  */
 static ssize_t temp_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
+    int value;
     (void)kobj;
     (void)attr;
-    int value;
-    
+
     /* Validate input parameters */
     if (!buf || count == 0) {
         return -EINVAL;
@@ -210,10 +210,10 @@ static ssize_t temp_default_show(struct kobject *kobj, struct kobj_attribute *at
  */
 static ssize_t temp_min_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
+    int value;
     (void)kobj;
     (void)attr;
-    int value;
-    
+
     /* Validate input parameters */
     if (!buf || count == 0) {
         return -EINVAL;
@@ -255,10 +255,10 @@ static ssize_t temp_min_store(struct kobject *kobj, struct kobj_attribute *attr,
  */
 static ssize_t temp_max_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
+    int value;
     (void)kobj;
     (void)attr;
-    int value;
-    
+
     /* Validate input parameters */
     if (!buf || count == 0) {
         return -EINVAL;
@@ -300,10 +300,10 @@ static ssize_t temp_max_store(struct kobject *kobj, struct kobj_attribute *attr,
  */
 static ssize_t temp_crit_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
+    int value;
     (void)kobj;
     (void)attr;
-    int value;
-    
+
     /* Validate input parameters */
     if (!buf || count == 0) {
         return -EINVAL;
@@ -369,10 +369,10 @@ static ssize_t stats_show(struct kobject *kobj, struct kobj_attribute *attr, cha
  */
 static ssize_t temp_default_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
+    int value;
     (void)kobj;
     (void)attr;
-    int value;
-    
+
     /* Validate input parameters */
     if (!buf || count == 0) {
         return -EINVAL;

@@ -406,6 +406,12 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
 {
     struct quectel_hwmon_data *data;
     struct device *hwmon_dev;
+    struct device *hwmon_parent;
+    struct kobject *hwmon_kobj;
+    int main_temp_min;
+    int main_temp_max;
+    int main_temp_crit;
+    int main_temp_default;
 
     /* Allocate memory for the hwmon sensor data structure */
     data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -415,17 +421,17 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
     mutex_init(&data->lock);
 
     /* Read current temperature thresholds from main sysfs interface */
-    int main_temp_min = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_min", DEFAULT_TEMP_MIN);
-    int main_temp_max = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_max", DEFAULT_TEMP_MAX);
-    int main_temp_crit = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_crit", DEFAULT_TEMP_CRIT);
-    int main_temp_default = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_default", DEFAULT_TEMP_DEFAULT);
-    
+    main_temp_min = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_min", DEFAULT_TEMP_MIN);
+    main_temp_max = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_max", DEFAULT_TEMP_MAX);
+    main_temp_crit = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_crit", DEFAULT_TEMP_CRIT);
+    main_temp_default = read_sysfs_value("/sys/kernel/quectel_rm520n_thermal/temp_default", DEFAULT_TEMP_DEFAULT);
+
     /* Set values from main sysfs if available, otherwise use defaults */
     data->temp = main_temp_default;
     data->temp_min = main_temp_min;
     data->temp_max = main_temp_max;
     data->temp_crit = main_temp_crit;
-    
+
     /* Log the final values that were set (debug level) */
     dev_dbg(&pdev->dev, "Hwmon initialized with values: temp=%d, min=%d, max=%d, crit=%d m°C\n",
              data->temp, data->temp_min, data->temp_max, data->temp_crit);
@@ -439,26 +445,26 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
                                                      "quectel_rm520n_thermal",
                                                      data,
                                                      quectel_hwmon_groups);
-    
+
     if (IS_ERR(hwmon_dev)) {
         dev_err(&pdev->dev, "Failed to register hwmon device: %ld\n", PTR_ERR(hwmon_dev));
         return PTR_ERR(hwmon_dev);
     }
 
     dev_info(&pdev->dev, "Quectel RM520N hwmon sensor registered\n");
-    
+
     /* Log hwmon device hierarchy for debugging (debug level) */
-    struct device *hwmon_parent = hwmon_dev->parent;
+    hwmon_parent = hwmon_dev->parent;
     if (hwmon_parent) {
         dev_dbg(&pdev->dev, "Hwmon parent device: %s", dev_name(hwmon_parent));
-        
+
         /* Log the hwmon kobject path for debugging */
-        struct kobject *hwmon_kobj = &hwmon_dev->kobj;
+        hwmon_kobj = &hwmon_dev->kobj;
         if (hwmon_kobj) {
             dev_dbg(&pdev->dev, "Hwmon kobject path: %s", kobject_name(hwmon_kobj));
         }
     }
-    
+
     return 0;
 }
 
