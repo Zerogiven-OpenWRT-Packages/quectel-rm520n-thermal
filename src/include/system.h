@@ -13,6 +13,7 @@
 #define SYSTEM_H
 
 #include <signal.h>
+#include <stddef.h>
 
 /* ============================================================================
  * FUNCTION DECLARATIONS
@@ -72,5 +73,21 @@ void signal_handler(int sig);
  * Using sig_atomic_t for signal-safe access
  */
 extern volatile sig_atomic_t shutdown_requested;
+
+/* ============================================================================
+ * HWMON DISCOVERY FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
+ * @path_buf: Buffer to store the path
+ * @buf_size: Size of the buffer
+ *
+ * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
+ * by scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ *
+ * @return 0 on success, -1 on failure
+ */
+int find_quectel_hwmon_path(char *path_buf, size_t buf_size);
 
 #endif /* SYSTEM_H */

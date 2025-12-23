@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <sys/file.h>
 #include <dirent.h>
+#include "include/common.h"
 #include "include/logging.h"
 #include "include/system.h"
 
@@ -152,4 +153,66 @@ void signal_handler(int sig)
         /* Only set flag - do not call non-async-signal-safe functions */
         shutdown_requested = 1;
     }
+}
+
+/* ============================================================================
+ * HWMON DISCOVERY FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
+ * @path_buf: Buffer to store the path
+ * @buf_size: Size of the buffer
+ *
+ * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
+ * by scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ *
+ * @return 0 on success, -1 on failure
+ */
+int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
+{
+    DIR *hwmon_dir;
+    struct dirent *entry;
+    int found = 0;
+
+    if (!path_buf || buf_size == 0) {
+        return -1;
+    }
+
+    hwmon_dir = opendir("/sys/class/hwmon");
+    if (!hwmon_dir) {
+        return -1;
+    }
+
+    while ((entry = readdir(hwmon_dir)) != NULL) {
+        char name_path[PATH_MAX_LEN];
+        char dev_name[DEVICE_NAME_LEN];
+        FILE *name_fp;
+
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= (int)sizeof(name_path)) {
+            continue;
+        }
+
+        name_fp = fopen(name_path, "r");
+        if (name_fp) {
+            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
+                dev_name[strcspn(dev_name, "\n")] = '\0';
+                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
+                    fclose(name_fp);
+                    if (snprintf(path_buf, buf_size, "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)buf_size) {
+                        found = 1;
+                        logging_debug("Found quectel hwmon device: %s", path_buf);
+                        break;
+                    }
+                }
+            }
+            fclose(name_fp);
+        }
+    }
+    closedir(hwmon_dir);
+
+    return found ? 0 : -1;
 }
