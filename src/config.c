@@ -25,6 +25,42 @@
 } while(0)
 
 /**
+ * Validate serial port path for security
+ * @param port Serial port path to validate
+ * @return 0 if valid, -1 if invalid
+ *
+ * Validates that the serial port path:
+ * - Is not NULL and has minimum length
+ * - Starts with /dev/
+ * - Does not contain path traversal (..)
+ * - Does not contain shell metacharacters
+ */
+static int validate_serial_port(const char *port)
+{
+    if (!port || strlen(port) < 5) {
+        return -1;
+    }
+
+    /* Must start with /dev/ */
+    if (strncmp(port, "/dev/", 5) != 0) {
+        return -1;
+    }
+
+    /* Check for path traversal */
+    if (strstr(port, "..") != NULL) {
+        return -1;
+    }
+
+    /* Check for shell metacharacters */
+    if (strchr(port, ';') || strchr(port, '|') || strchr(port, '&') ||
+        strchr(port, '$') || strchr(port, '`') || strchr(port, '\n')) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Set default configuration values
  * @param config Configuration structure to initialize
  */
@@ -131,11 +167,16 @@ int config_read_uci(config_t *config)
     
     struct uci_section *section = uci_lookup_section(ctx, pkg, "settings");
     if (section) {
-        // Read serial port
+        // Read serial port with validation
         const char *port = uci_lookup_option_string(ctx, section, "serial_port");
         if (port) {
-            SAFE_STRNCPY(config->serial_port, port, sizeof(config->serial_port));
-            logging_debug("UCI serial_port read: '%s'", port);
+            if (validate_serial_port(port) == 0) {
+                SAFE_STRNCPY(config->serial_port, port, sizeof(config->serial_port));
+                logging_debug("UCI serial_port read: '%s'", port);
+            } else {
+                logging_warning("UCI serial_port '%s' failed validation, using default: '%s'",
+                               port, config->serial_port);
+            }
         } else {
             logging_debug("UCI serial_port not found, using default: '%s'", config->serial_port);
         }
