@@ -23,19 +23,19 @@ jobs:
         include:
           # 24.10
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
+            openwrt_build_version: '24.10.4'
             arch: 'x86_64'
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
+            openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a53'
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
+            openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a72'
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
+            openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a7'
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
+            openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a9'
       fail-fast: false
 
