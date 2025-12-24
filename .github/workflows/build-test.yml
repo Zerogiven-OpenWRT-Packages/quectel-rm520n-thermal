@@ -56,15 +56,14 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
 
-          # - openwrt_version: '24.10'
-          #   openwrt_build_version: '24.10.4'
-          #   arch: 'mips_24kc'
-          #   target: ''
-          # - openwrt_version: '24.10'
-          #   openwrt_build_version: '24.10.4'
-          #   arch: 'mipsel_24kc'
-          #   target: ''
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mips_24kc'
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mipsel_24kc'
       fail-fast: false
 
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
