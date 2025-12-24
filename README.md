@@ -12,7 +12,6 @@
   - [Device Tree Configuration](#device-tree-configuration)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
-- [Support](#support)
 
 ## Overview
 
@@ -110,7 +109,7 @@ quectel_rm520n_temp status
 ### Build Environment
 ```bash
 # Clone to OpenWrt package directory
-git clone https://github.com/your-repo/quectel-rm520n-thermal.git package/quectel-rm520n-thermal
+git clone https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal.git package/quectel-rm520n-thermal
 
 # Add to build config: Utilities → Quectel RM520N Thermal Management Tools
 make menuconfig
