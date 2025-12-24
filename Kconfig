@@ -12,15 +12,28 @@ config PACKAGE_KMOD_QUECTEL_RM520N_THERMAL
 
 config PACKAGE_QUECTEL_RM520N_THERMAL
     bool "Quectel RM520N Thermal Management Tools"
-    depends on PACKAGE_KMOD_QUECTEL_RM520N_THERMAL +LIBUCI +LIBSYSFS
+    depends on PACKAGE_KMOD_QUECTEL_RM520N_THERMAL
     help
       Userspace tools and configuration for the Quectel RM520N thermal stack.
+      Requires: libuci, libsysfs, libubox
+
       Includes:
-        - Combined daemon and CLI tool with subcommands (read/daemon/config)
+        - Combined daemon and CLI tool with subcommands (read/daemon/config/status)
         - UCI configuration (/etc/config/quectel_rm520n_thermal)
         - Configurable temperature parsing prefixes for different modem models
-        - Device Tree overlay for virtual sensor (.dtbo)
+        - Example Device Tree overlay for thermal zone integration
         - init.d script for starting/stopping the daemon
         - Automatic thermal zone detection with safety checks
+        - Watch mode for continuous temperature monitoring
+        - JSON output support for scripting
+
+config PACKAGE_PROMETHEUS_NODE_EXPORTER_UCODE_QUECTEL_RM520N_THERMAL
+    bool "Prometheus collector for Quectel RM520N modem"
+    depends on PACKAGE_QUECTEL_RM520N_THERMAL
+    help
+      ucode collector for prometheus-node-exporter-ucode that exports
+      Quectel RM520N modem temperature metrics and daemon statistics.
+
+      Requires: prometheus-node-exporter-ucode
 
 endmenu
