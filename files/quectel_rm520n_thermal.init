@@ -1,6 +1,7 @@
 #!/bin/sh /etc/rc.common
 #
 # Copyright (C) 2025 Christopher Sollinger
+#
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
@@ -8,6 +9,7 @@
 # This script provides procd-based service management for the
 # Quectel RM520N thermal monitoring daemon with automatic
 # kernel module loading and configuration monitoring.
+#
 
 # shellcheck disable=SC2034
 USE_PROCD=1
@@ -16,7 +18,6 @@ STOP=50
 SERVICE_PROVIDES="quectel_rm520n_thermal"
 SERVICE_NAME="quectel_rm520n_thermal"
 
-# Function to read UCI configuration
 load_config() {
     config_load quectel_rm520n_thermal
     
@@ -31,14 +32,7 @@ load_config() {
     config_get auto_start settings auto_start 1
 }
 
-# Service data function - provides service information
-service_data() {
-    echo ""
-}
-
-# Function to start the service
 start_service() {
-    # Load configuration
     load_config
     
     # Check if service is enabled
@@ -77,13 +71,10 @@ start_service() {
     procd_close_instance
 }
 
-# Function to stop the service
 stop_service() {
-    # Cleanup any PID files that might exist
     rm -f /var/run/quectel_rm520n_temp.pid
 }
 
-# Function to reload configuration
 reload_service() {
     echo "Reloading Quectel RM520N thermal service due to config change..."
     
@@ -93,28 +84,18 @@ reload_service() {
         /usr/bin/quectel_rm520n_temp config
     fi
     
-    # Stop the current service
     stop_service
-    
-    # Wait a moment for clean shutdown
     sleep 1
-    
-    # Start the service with new configuration
     start_service
     
     echo "Service reloaded successfully with new configuration"
 }
 
-# Function for service triggers
 service_triggers() {
     procd_add_reload_trigger "quectel_rm520n_thermal"
-    
-    # Add config file change trigger - this will call reload_service automatically
-    # Note: 'uci commit' from command line requires '/sbin/reload_config' to trigger this
     procd_add_config_trigger "config.change" "quectel_rm520n_thermal" /etc/init.d/quectel_rm520n_thermal reload
 }
 
-# Function to manually update configuration
 update_config() {
     echo "Updating kernel module thresholds from UCI configuration..."
     if [ -x /usr/bin/quectel_rm520n_temp ]; then
@@ -125,7 +106,6 @@ update_config() {
     fi
 }
 
-# Default action - show usage if no arguments provided
 default() {
     echo "Usage: $0 {start|stop|restart|reload|status|enable|disable|update_config}"
     echo ""
@@ -153,7 +133,6 @@ default() {
     echo "        to trigger the auto-reload. LuCI web interface works automatically."
 }
 
-# Handle update_config command
 case "$1" in
     update_config)
         update_config
