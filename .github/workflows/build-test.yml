@@ -25,30 +25,29 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'x86_64'
-            target: ''
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a53'
-            target: ''
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a72'
-            target: ''
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a7_neon-vfpv4'
-            target: ''
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a7_vfpv4'
-            target: ''
+
           # - openwrt_version: '24.10'
           #   openwrt_build_version: '24.10.4'
           #   arch: 'arm_cortex-a7'
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a9'
-            target: ''
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
@@ -57,16 +56,15 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'bcm27xx-bcm2711'
-            target: ''
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
-            arch: 'mips_24kc'
-            target: ''
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
-            arch: 'mipsel_24kc'
-            target: ''
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.4'
+          #   arch: 'mips_24kc'
+          #   target: ''
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.4'
+          #   arch: 'mipsel_24kc'
+          #   target: ''
       fail-fast: false
 
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
