@@ -40,13 +40,6 @@ jobs:
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
-            arch: 'arm_cortex-a7_vfpv4'
-
-          # - openwrt_version: '24.10'
-          #   openwrt_build_version: '24.10.4'
-          #   arch: 'arm_cortex-a7'
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a9'
 
           - openwrt_version: '24.10'
