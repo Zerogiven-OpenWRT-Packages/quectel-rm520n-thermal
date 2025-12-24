@@ -51,24 +51,6 @@ This project provides a comprehensive set of tools and kernel modules for monito
 
 This package provides **full integration with the Linux kernel thermal framework**, the standard way to handle thermal management in Linux systems.
 
-### How It Works
-
-1. **Temperature Updates**: The userspace daemon reads modem temperature via AT commands and writes it to the kernel thermal zone.
-
-2. **Trip Points**: Configured in Device Tree (DTS/DTSI), the kernel automatically monitors temperature against defined thresholds:
-   - **critical**: System-critical temperature (e.g., 85°C) - triggers emergency shutdown
-   - **hot**: High temperature warning (e.g., 80°C)
-   - **active**: Temperature levels for active cooling (e.g., 65-75°C)
-   - **passive**: Temperature for passive cooling/throttling
-
-3. **Automatic Events**: When temperature crosses a trip point, the kernel automatically:
-   - Sends `uevent` notifications to userspace
-   - Triggers associated cooling devices (if configured)
-   - Logs thermal events to kernel messages
-   - **No userspace polling required**
-
-4. **Cooling Devices**: Can bind to fans, thermal throttling, or other cooling mechanisms via Device Tree cooling-maps.
-
 ### Standard Interfaces
 
 The thermal zone exposes standard Linux interfaces:
@@ -139,12 +121,11 @@ make
 
 ### Existing System
 ```bash
-make package/quectel-rm520n-thermal/compile V=s
-opkg install bin/packages/.../kmod-quectel-rm520n-thermal.ipk
-opkg install bin/packages/.../quectel-rm520n-thermal.ipk
+opkg install kmod-quectel-rm520n-thermal.ipk
+opkg install quectel-rm520n-thermal.ipk
 
 # Optional: Install Prometheus metrics collector
-opkg install bin/packages/.../prometheus-node-exporter-ucode-quectel-rm520n-thermal.ipk
+opkg install prometheus-node-exporter-ucode-quectel-rm520n-thermal.ipk
 ```
 
 **Note**: Service starts automatically after installation.
@@ -215,33 +196,12 @@ config quectel_rm520n_thermal 'settings'
     option temp_pa_prefix 'modem-lte-sub6-pa1'
 ```
 
-### Configuration Management
-
-**Important**: After modifying the configuration, you must:
-
-1. **Commit changes**: `uci commit quectel_rm520n_thermal`
-2. **Reload configuration**: `/sbin/reload_config` (triggers auto-reload)
-3. **Or restart service**: `/etc/init.d/quectel_rm520n_thermal restart`
-
-The service automatically detects configuration changes and reloads kernel module thresholds when the UCI config is updated.
-
 ### Modem Compatibility
 
 This package works with any modem that:
 - Supports AT+QTEMP command
 - Returns temperature data in a format similar to Quectel RM520N
 - Uses a ttyUSB serial port for communication
-
-**Actual AT+QTEMP Response Format:**
-```
-AT+QTEMP
-+QTEMP:"modem-lte-sub6-pa1","43"
-+QTEMP:"cpuss-0-usr","43"
-+QTEMP:"modem-ambient-usr","43"
-OK
-```
-
-To use with different modem models, simply adjust the temperature parsing prefixes in the UCI configuration to match your modem's response format.
 
 ### Device Tree Configuration
 
@@ -390,9 +350,6 @@ quectel_rm520n_temp --json --celsius
 # Watch mode - continuously monitor temperature
 quectel_rm520n_temp --watch
 
-# Watch mode in degrees Celsius
-quectel_rm520n_temp --watch --celsius
-
 # Watch mode with JSON output
 quectel_rm520n_temp --watch --json
 
@@ -477,15 +434,3 @@ uci set quectel_rm520n_thermal.settings.temp_pa_prefix='your-pa-prefix'
 uci commit quectel_rm520n_thermal
 /sbin/reload_config
 ```
-
-## License
-
-This project is licensed under the GNU General Public License. See the `LICENSE` file for details.
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request on GitHub.
-
-## Support
-
-For questions or support, please open an issue on GitHub.
