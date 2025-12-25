@@ -16,6 +16,9 @@ on:
         default: false
         type: boolean
 
+# Minimize GITHUB_TOKEN permissions for security
+permissions: {}
+
 jobs:
   build-test:
     strategy:

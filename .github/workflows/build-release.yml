@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+# Minimize GITHUB_TOKEN permissions for security
+# Individual jobs override as needed (e.g., create-release needs contents: write)
+permissions: {}
+
 jobs:
   build-packages:
     strategy:
