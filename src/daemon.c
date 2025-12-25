@@ -341,63 +341,55 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     g_stats.successful_reads++;
 
                     // Write to main sysfs interface (primary interface for CLI tool)
-                    if (access("/sys/kernel/quectel_rm520n_thermal/temp", W_OK) == 0) {
+                    // Avoid TOCTOU race by directly attempting fopen without access() check
+                    {
                         FILE *fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "w");
                         if (fp) {
                             fprintf(fp, "%d", best_temp_mdeg);
                             fclose(fp);
                             logging_debug("Wrote temperature to main sysfs interface: %d m°C", best_temp_mdeg);
                         } else {
-                            logging_warning("Failed to open main sysfs interface for writing");
+                            logging_debug("Main sysfs interface not available");
                         }
-                    } else {
-                        logging_debug("Main sysfs interface not writable: /sys/kernel/quectel_rm520n_thermal/temp");
                     }
                     
                     // Write to hwmon interface (for system monitoring tools)
-                    if (hwmon_available && access(hwmon_path, W_OK) == 0) {
+                    // Avoid TOCTOU race by directly attempting fopen without access() check
+                    if (hwmon_available) {
                         FILE *fp = fopen(hwmon_path, "w");
                         if (fp) {
                             fprintf(fp, "%d", best_temp_mdeg);
                             fclose(fp);
                             logging_debug("Wrote temperature to hwmon interface: %d m°C", best_temp_mdeg);
                         } else {
-                            logging_warning("Failed to open hwmon interface for writing: %s", hwmon_path);
+                            logging_debug("Hwmon interface not writable: %s", hwmon_path);
                         }
-                    } else {
-                        logging_debug("Hwmon interface not available or not writable: %s", hwmon_available ? hwmon_path : "not found");
                     }
                     
                     // Write to platform device interface if available
+                    // Avoid TOCTOU race by directly attempting fopen without access() check
                     char platform_path[PLATFORM_PATH_LEN];  // Reduced from 256 - platform paths are short
                     if (snprintf(platform_path, sizeof(platform_path), "/sys/devices/platform/quectel_rm520n_temp/cur_temp") >= sizeof(platform_path)) {
                         logging_warning("Platform path truncated, device write skipped");
                     } else {
-                        if (access(platform_path, W_OK) == 0) {
-                            FILE *fp = fopen(platform_path, "w");
-                            if (fp) {
-                                fprintf(fp, "%d", best_temp_mdeg);
-                                fclose(fp);
-                                logging_debug("Wrote temperature to platform device: %s", platform_path);
-                            }
-                        } else {
-                            logging_debug("Platform device not available: %s", platform_path);
+                        FILE *fp = fopen(platform_path, "w");
+                        if (fp) {
+                            fprintf(fp, "%d", best_temp_mdeg);
+                            fclose(fp);
+                            logging_debug("Wrote temperature to platform device: %s", platform_path);
                         }
                     }
                     
                     // Write to platform sensor interface if available
+                    // Avoid TOCTOU race by directly attempting fopen without access() check
                     if (snprintf(platform_path, sizeof(platform_path), "/sys/devices/platform/soc/soc:quectel-temp-sensor/cur_temp") >= sizeof(platform_path)) {
                         logging_warning("Platform sensor path truncated, sensor write skipped");
                     } else {
-                        if (access(platform_path, W_OK) == 0) {
-                            FILE *fp = fopen(platform_path, "w");
-                            if (fp) {
-                                fprintf(fp, "%d", best_temp_mdeg);
-                                fclose(fp);
-                                logging_debug("Wrote temperature to platform sensor: %s", platform_path);
-                            }
-                        } else {
-                            logging_debug("Platform sensor not available: %s", platform_path);
+                        FILE *fp = fopen(platform_path, "w");
+                        if (fp) {
+                            fprintf(fp, "%d", best_temp_mdeg);
+                            fclose(fp);
+                            logging_debug("Wrote temperature to platform sensor: %s", platform_path);
                         }
                     }
                     
@@ -449,17 +441,16 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                                             
                                             fclose(type_fp);
                                             logging_debug("Found modem thermal zone: %s (type: %s)", entry->d_name, zone_type);
-                                            
+
                                             // Found our modem thermal zone, write temperature
-                                            if (access(temp_path, W_OK) == 0) {
-                                                FILE *temp_fp = fopen(temp_path, "w");
-                                                if (temp_fp) {
-                                                    fprintf(temp_fp, "%d", best_temp_mdeg);
-                                                    fclose(temp_fp);
-                                                    logging_info("Wrote temperature to modem thermal zone: %s", temp_path);
-                                                }
+                                            // Avoid TOCTOU race by directly attempting fopen without access() check
+                                            FILE *temp_fp = fopen(temp_path, "w");
+                                            if (temp_fp) {
+                                                fprintf(temp_fp, "%d", best_temp_mdeg);
+                                                fclose(temp_fp);
+                                                logging_info("Wrote temperature to modem thermal zone: %s", temp_path);
                                             } else {
-                                                logging_warning("Modem thermal zone temp file not writable: %s", temp_path);
+                                                logging_debug("Modem thermal zone temp file not writable: %s", temp_path);
                                             }
                                             break; // Found our zone, no need to check others
                                         } else {
