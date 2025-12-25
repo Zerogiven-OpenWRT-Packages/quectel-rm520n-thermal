@@ -262,16 +262,10 @@ static int write_sysfs_value(const char *filename, int value)
         return -1;
     }
     
-    // Check if file exists
-    if (access(path, W_OK) != 0) {
-        logging_debug("Sysfs file not writable: %s", path);
-        return -1;
-    }
-    
-    // Write value
+    // Open file for writing (avoid TOCTOU race with access() check)
     fp = fopen(path, "w");
     if (!fp) {
-        logging_error("Failed to open sysfs file: %s", path);
+        logging_debug("Sysfs file not writable: %s", path);
         return -1;
     }
     
@@ -304,16 +298,10 @@ static int read_sysfs_value(const char *filename)
         return -1;
     }
     
-    // Check if file exists
-    if (access(path, R_OK) != 0) {
-        logging_debug("Sysfs file not readable: %s", path);
-        return -1;
-    }
-    
-    // Read value
+    // Open file for reading (avoid TOCTOU race with access() check)
     fp = fopen(path, "r");
     if (!fp) {
-        logging_error("Failed to open sysfs file: %s", path);
+        logging_debug("Sysfs file not readable: %s", path);
         return -1;
     }
     
@@ -761,17 +749,14 @@ int uci_config_mode(void)
                                 // Try to update this alternative device
                                 char alt_hwmon_path[256];
                                 if (snprintf(alt_hwmon_path, sizeof(alt_hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, alt_hwmon_num) < sizeof(alt_hwmon_path)) {
-                                    if (access(alt_hwmon_path, W_OK) == 0) {
-                                        logging_info("Alternative hwmon%d is writable, attempting update...", alt_hwmon_num);
-                                        // Try to update temp1_crit as a test
-                                        if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
-                                            temp_crit = celsius_to_millidegrees(uci_value);
-                                            FILE *alt_fp = fopen(alt_hwmon_path, "w");
-                                            if (alt_fp) {
-                                                fprintf(alt_fp, "%d", temp_crit);
-                                                fclose(alt_fp);
-                                                logging_info("Successfully updated alternative hwmon%d temp1_crit to %d m°C", alt_hwmon_num, temp_crit);
-                                            }
+                                    // Try to update temp1_crit (avoid TOCTOU race with access() check)
+                                    if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
+                                        temp_crit = celsius_to_millidegrees(uci_value);
+                                        FILE *alt_fp = fopen(alt_hwmon_path, "w");
+                                        if (alt_fp) {
+                                            fprintf(alt_fp, "%d", temp_crit);
+                                            fclose(alt_fp);
+                                            logging_info("Successfully updated alternative hwmon%d temp1_crit to %d m°C", alt_hwmon_num, temp_crit);
                                         }
                                     }
                                 }
