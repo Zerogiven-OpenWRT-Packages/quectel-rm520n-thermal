@@ -106,6 +106,12 @@ quectel_rm520n_temp status
 
 ## Installation
 
+### With Package Feed
+
+You can setup this package feed to install and update it with opkg:
+
+[https://github.com/Zerogiven-OpenWRT-Packages/package-feed](https://github.com/Zerogiven-OpenWRT-Packages/package-feed)
+
 ### Build Environment
 ```bash
 # Clone to OpenWrt package directory
