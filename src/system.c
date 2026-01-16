@@ -100,11 +100,13 @@ int acquire_daemon_lock(void)
         return -1; // Lock acquisition failed
     }
 
-    // Write PID to PID file
+    // Write PID to PID file with explicit permissions
     FILE *pid_file = fopen(PID_FILE, "w");
     if (pid_file) {
         fprintf(pid_file, "%d\n", getpid());
         fclose(pid_file);
+        // Set explicit permissions: world-readable PID file is OK (0644)
+        chmod(PID_FILE, 0644);
     }
 
     return 0;

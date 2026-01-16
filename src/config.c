@@ -14,7 +14,13 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <errno.h>
+#include <limits.h>
 #include <uci.h>
+
+/* Interval range limits */
+#define INTERVAL_MIN 1      /* Minimum 1 second */
+#define INTERVAL_MAX 3600   /* Maximum 1 hour */
 #include "include/config.h"
 #include "include/logging.h"
 
@@ -181,12 +187,22 @@ int config_read_uci(config_t *config)
             logging_debug("UCI serial_port not found, using default: '%s'", config->serial_port);
         }
         
-        // Read interval
+        // Read interval with proper validation
         const char *interval_str = uci_lookup_option_string(ctx, section, "interval");
         if (interval_str) {
-            int tmp = atoi(interval_str);
-            if (tmp > 0) config->interval = tmp;
-            logging_debug("UCI interval read: '%s' -> %d", interval_str, config->interval);
+            char *endptr;
+            errno = 0;
+            long tmp = strtol(interval_str, &endptr, 10);
+            if (errno != 0 || endptr == interval_str || *endptr != '\0') {
+                logging_warning("Invalid interval value '%s', using default: %d",
+                               interval_str, config->interval);
+            } else if (tmp < INTERVAL_MIN || tmp > INTERVAL_MAX) {
+                logging_warning("Interval %ld out of range [%d-%d], using default: %d",
+                               tmp, INTERVAL_MIN, INTERVAL_MAX, config->interval);
+            } else {
+                config->interval = (int)tmp;
+                logging_debug("UCI interval read: '%s' -> %d", interval_str, config->interval);
+            }
         } else {
             logging_debug("UCI interval not found, using default: %d", config->interval);
         }

@@ -27,6 +27,7 @@
 
 #define SYSFS_BASE "/sys/kernel/quectel_rm520n_thermal"
 #define HWMON_BASE "/sys/class/hwmon"
+#define HWMON_NUM_MAX 255   /* Maximum valid hwmon device number */
 #define UCI_CONFIG "quectel_rm520n_thermal"
 #define UCI_SECTION "settings"
 
@@ -48,14 +49,19 @@
  */
 static int extract_hwmon_number(const char *dir_name)
 {
+    char *endptr;
+    long num;
+
     if (!dir_name) return -1;
-    
+
     // Extract numeric part from "hwmon3" -> "3"
     const char *num_start = strpbrk(dir_name, "0123456789");
     if (num_start) {
-        int num = atoi(num_start);
-        if (num >= 0) {
-            return num;
+        errno = 0;
+        num = strtol(num_start, &endptr, 10);
+        // Validate: no error, consumed digits, and within valid range
+        if (errno == 0 && endptr != num_start && num >= 0 && num <= HWMON_NUM_MAX) {
+            return (int)num;
         }
     }
     return -1;
@@ -471,9 +477,19 @@ int uci_config_mode(void)
         // Check for manual override via environment variable
         const char *manual_hwmon = getenv("QUECTEL_HWMON_OVERRIDE");
         if (manual_hwmon) {
-            int manual_num = atoi(manual_hwmon);
-            logging_info("Manual hwmon override: using hwmon%d (from QUECTEL_HWMON_OVERRIDE=%s)", manual_num, manual_hwmon);
-            hwmon_num = manual_num;
+            char *endptr;
+            errno = 0;
+            long manual_num = strtol(manual_hwmon, &endptr, 10);
+            if (errno != 0 || endptr == manual_hwmon || *endptr != '\0') {
+                logging_warning("Invalid QUECTEL_HWMON_OVERRIDE value '%s', ignoring", manual_hwmon);
+            } else if (manual_num < 0 || manual_num > HWMON_NUM_MAX) {
+                logging_warning("QUECTEL_HWMON_OVERRIDE value %ld out of range [0-%d], ignoring",
+                               manual_num, HWMON_NUM_MAX);
+            } else {
+                logging_info("Manual hwmon override: using hwmon%ld (from QUECTEL_HWMON_OVERRIDE=%s)",
+                            manual_num, manual_hwmon);
+                hwmon_num = (int)manual_num;
+            }
         }
         
         logging_debug("Final hwmon_num value: %d", hwmon_num);
@@ -743,7 +759,12 @@ int uci_config_mode(void)
                         if (fgets(alt_dev_name, sizeof(alt_dev_name), alt_name_fp) != NULL) {
                             alt_dev_name[strcspn(alt_dev_name, "\n")] = '\0';
                             if (strcmp(alt_dev_name, "quectel_rm520n_thermal") == 0) {
-                                int alt_hwmon_num = atoi(alt_entry->d_name);
+                                int alt_hwmon_num = extract_hwmon_number(alt_entry->d_name);
+                                if (alt_hwmon_num < 0) {
+                                    logging_warning("Failed to extract hwmon number from '%s'", alt_entry->d_name);
+                                    fclose(alt_name_fp);
+                                    continue;
+                                }
                                 logging_info("Alternative detection found: hwmon%d", alt_hwmon_num);
                                 
                                 // Try to update this alternative device
