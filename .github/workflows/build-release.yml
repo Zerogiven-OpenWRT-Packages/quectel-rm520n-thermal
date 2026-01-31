@@ -206,7 +206,7 @@ jobs:
             arch: 'mipsel_24kc'
       fail-fast: false
 
-    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
+    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@prometheus-node-exporter-lua-patch
     with:
       package_name: 'quectel-rm520n-thermal'
       sdk_packages: 'quectel-rm520n-thermal'
