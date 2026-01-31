@@ -61,6 +61,7 @@ define Package/prometheus-node-exporter-lua-$(PKG_NAME)
 	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
 	MAINTAINER:=$(PKG_MAINTAINER)
 	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
+	PKGARCH:=all
 endef
 
 define Package/prometheus-node-exporter-lua-$(PKG_NAME)/description

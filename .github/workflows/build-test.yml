@@ -10,6 +10,7 @@ on:
         type: choice
         options:
         - '24.10'
+        - '25.12'
       verbose:
         description: 'Verbose build output'
         required: false
@@ -33,8 +34,8 @@ jobs:
           #   openwrt_build_version: '24.10.3'
           #   arch: 'aarch64_cortex-a53'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
+          - openwrt_version: '25.12'
+            openwrt_build_version: '25.12.0-rc4'
             arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
@@ -70,7 +71,7 @@ jobs:
           #   arch: 'mipsel_24kc'
       fail-fast: false
 
-    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@main
+    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@prometheus-node-exporter-lua-patch
     with:
       package_name: 'quectel-rm520n-thermal'
       sdk_packages: 'quectel-rm520n-thermal'
