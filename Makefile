@@ -1,9 +1,3 @@
-#
-# Copyright (C) 2025 Christopher Sollinger
-# This is free software, licensed under the GNU General Public License.
-# See /LICENSE for more information.
-#
-
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
@@ -56,26 +50,24 @@ define Package/$(PKG_NAME)/description
    - Combined daemon and CLI tool with subcommand interface (read/daemon/config)
    - Watch mode for continuous temperature monitoring
    - UCI-based configuration with automatic service reload
-   - Configurable temperature parsing prefixes for different modem models
-   - Temperature output in millidegrees (default) or degrees Celsius
    - Linux thermal framework integration with automatic thermal events
 endef
 
-# --- Prometheus ucode collector package definition ---
-define Package/prometheus-node-exporter-ucode-$(PKG_NAME)
+# --- Prometheus Lua collector package definition ---
+define Package/prometheus-node-exporter-lua-$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
-	TITLE:=Prometheus collector for Quectel RM520N modem
+	TITLE:=Prometheus Lua collector for Quectel RM520N modem
 	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
 	MAINTAINER:=$(PKG_MAINTAINER)
-	DEPENDS:=+$(PKG_NAME)
-	EXTRA_DEPENDS:=prometheus-node-exporter-ucode
+	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
 endef
 
-define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/description
-	ucode collector for prometheus-node-exporter-ucode that exports
+define Package/prometheus-node-exporter-lua-$(PKG_NAME)/description
+	Lua collector for prometheus-node-exporter-lua that exports
 	Quectel RM520N modem temperature metrics and daemon statistics.
-	Requires prometheus-node-exporter-ucode service.
+	Reads from sysfs when daemon is running, falls back to CLI otherwise.
+	Requires prometheus-node-exporter-lua service.
 endef
 
 define Build/Prepare
@@ -146,21 +138,21 @@ define Package/$(PKG_NAME)/install
 
 endef
 
-# --- Prometheus package install ---
-define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/install
-	$(INSTALL_DIR) $(1)/usr/share/ucode/node-exporter/lib
-	$(INSTALL_DATA) ./files/quectel_rm520n_thermal.uc \
-		$(1)/usr/share/ucode/node-exporter/lib/quectel_rm520n_thermal.uc
+# --- Prometheus Lua package install ---
+define Package/prometheus-node-exporter-lua-$(PKG_NAME)/install
+	$(INSTALL_DIR) $(1)/usr/lib/lua/prometheus-collectors
+	$(INSTALL_DATA) ./files/quectel_rm520n_thermal.lua \
+		$(1)/usr/lib/lua/prometheus-collectors/quectel_rm520n_thermal.lua
 endef
 
-define Package/prometheus-node-exporter-ucode-$(PKG_NAME)/postinst
+define Package/prometheus-node-exporter-lua-$(PKG_NAME)/postinst
 	#!/bin/sh
 	[ -n "$${IPKG_INSTROOT}" ] || {
-		/etc/init.d/prometheus-node-exporter-ucode reload 2>/dev/null || true
+		/etc/init.d/prometheus-node-exporter-lua reload 2>/dev/null || true
 	}
 endef
 
 # --- Evaluation ---
 $(eval $(call KernelPackage,$(PKG_NAME)))
 $(eval $(call BuildPackage,$(PKG_NAME)))
-$(eval $(call BuildPackage,prometheus-node-exporter-ucode-$(PKG_NAME)))
+$(eval $(call BuildPackage,prometheus-node-exporter-lua-$(PKG_NAME)))
