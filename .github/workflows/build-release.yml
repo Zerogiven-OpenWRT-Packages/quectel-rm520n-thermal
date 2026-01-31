@@ -16,6 +16,10 @@ jobs:
         include:
           # 24.10
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'x86_64'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'x86_64'
 
@@ -34,6 +38,10 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.5'
             arch: 'x86_64'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
@@ -56,6 +64,10 @@ jobs:
             arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'aarch64_cortex-a72'
 
@@ -76,6 +88,10 @@ jobs:
             arch: 'aarch64_cortex-a72'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'arm_cortex-a7_neon-vfpv4'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'arm_cortex-a7_neon-vfpv4'
 
@@ -96,6 +112,10 @@ jobs:
             arch: 'arm_cortex-a7_neon-vfpv4'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'arm_cortex-a9'
 
@@ -114,6 +134,11 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.5'
             arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'mediatek-filogic'
+            target: 'mediatek/filogic'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
@@ -141,6 +166,11 @@ jobs:
             target: 'mediatek/filogic'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'bcm27xx-bcm2711'
             target: 'bcm27xx/bcm2711'
@@ -166,6 +196,10 @@ jobs:
             target: 'bcm27xx/bcm2711'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
             arch: 'mips_24kc'
 
@@ -184,6 +218,10 @@ jobs:
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.5'
             arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.0'
+            arch: 'mipsel_24kc'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.1'
