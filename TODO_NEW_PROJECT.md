@@ -95,7 +95,7 @@ These features are **independent but synergistic**:
 **Three-tier system**:
 1. **Built-in native parsers** (C) - Fast, reliable, for popular modems
 2. **Declarative UCI config** - Simple custom modems without code
-3. **ucode scripts** (future) - Maximum flexibility if needed
+3. **lua scripts** (future) - Maximum flexibility if needed
 
 ### 3. Temperature Selection Logic
 
@@ -1570,7 +1570,7 @@ fi
 **Nice to Have**:
 - ✅ Real hardware testing for SIMCom
 - ✅ More built-in parsers
-- ✅ ucode script support (future)
+- ✅ lua script support (future)
 
 ---
 
