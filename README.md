@@ -1,11 +1,15 @@
+[![OpenWrt](https://img.shields.io/badge/OpenWrt-24.10.x-darkgreen.svg)](https://openwrt.org/)
+[![GitHub Release](https://img.shields.io/github/v/release/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal)](https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal/releases)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal/total?color=blue)](https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal/releases)
+[![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal)](https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal/issues)
+
 # Quectel RM520N Thermal Management Tools
 
 Comprehensive tools and kernel modules for monitoring and managing Quectel modem temperature on OpenWrt.
 
-[![License](https://img.shields.io/badge/License-GPL-blue.svg)](LICENSE)
-[![OpenWrt](https://img.shields.io/badge/OpenWrt-24.10.x-green.svg)](https://openwrt.org/)
+<details>
 
-## Table of Contents
+<summary>Navigation</summary>
 
 - [Features](#features)
 - [Screenshot](#screenshot)
@@ -18,19 +22,22 @@ Comprehensive tools and kernel modules for monitoring and managing Quectel modem
 - [Device Tree Configuration](#device-tree-configuration)
 - [Troubleshooting](#troubleshooting)
 
+</details>
+
 ## Features
 
-- **Linux Thermal Framework Integration**: Full integration with the Linux kernel thermal subsystem for proper thermal management
-- **Device Tree Configuration**: Trip points, cooling devices, and thermal policies configured via Device Tree for automatic thermal response
-- **Automatic Thermal Events**: Kernel automatically sends uevents when trip points are crossed, no userspace polling needed for alerts
-- **hwmon Standard Interface**: Standard `/sys/class/hwmon/` interface for compatibility with all Linux monitoring tools
-- **Cooling Device Support**: Can bind to cooling devices (fans, throttling) via Device Tree cooling-maps for automatic thermal control
-- **OpenWrt Integration**: Fully compatible with OpenWrt build systems for seamless integration into custom firmware builds
-- **Configurable Daemon**: Userspace daemon reads modem temperature via AT commands and updates kernel thermal zones
-- **CLI Tool**: Command-line interface for manual temperature reading with JSON output support
-- **Prometheus Metrics**: Optional ucode collector package for integration with prometheus-node-exporter-ucode
-- **Fallback Mechanisms**: Works without Device Tree for basic monitoring on systems without DT support
-- **Open Source**: Licensed under the GNU General Public License for maximum flexibility
+- **Linux Thermal Framework Integration**
+- **Device Tree Configuration**
+    - Trip points, cooling devices, and thermal policies configured via Device Tree for automatic thermal response
+- **hwmon Standard Interface**
+- **Cooling Device Support**
+    - Can bind to cooling devices (fans, throttling) via Device Tree cooling-maps for automatic thermal control
+- **Configurable Daemon**
+- **CLI Tool**
+- **Prometheus Metrics**
+    - Lua Script support which works with or without running daemon
+- **Fallback Mechanisms**
+    - Works without Device Tree for basic monitoring on systems without DT support
 
 **Note**: This package is designed to work with any modem that supports AT+QTEMP command and provides temperature data in a similar format to the Quectel RM520N. The temperature parsing prefixes are configurable via UCI to support different modem models and response formats.
 
@@ -38,18 +45,9 @@ Comprehensive tools and kernel modules for monitoring and managing Quectel modem
 
 ![Quectel RM520N Thermal Management in Action](Screenshot.png)
 
-*Screenshot showing the thermal management system in action: kernel sysfs interface, hwmon integration, sensors output displaying temperature thresholds, and daemon logs updating temperature values.*
-
-## Components
-
-- **Kernel Modules**: Three specialized modules for sysfs, thermal sensors, and hwmon integration
-- **Userspace Tool**: Combined daemon and CLI with subcommands (`read`, `daemon`, `config`)
-- **Configuration**: UCI-based configuration with automatic service reload
-- **Service Management**: OpenWrt procd integration with auto-restart
-
 ## Requirements
 
-- OpenWrt 24.10.x or later
+- OpenWrt 24.10
 - Quectel modem with AT+QTEMP support (RM520N-GL or compatible)
 - Serial port access to modem (typically /dev/ttyUSB2 or /dev/ttyUSB3)
 
@@ -83,7 +81,9 @@ make package/quectel-rm520n-thermal/compile V=s
 
 ## Usage
 
-### Quick Start
+<details>
+
+<summary>Quick Start</summary>
 
 ```bash
 # Read temperature (uses daemon data if available)
@@ -97,7 +97,11 @@ quectel_rm520n_temp status
 /etc/init.d/quectel_rm520n_thermal status
 ```
 
-### CLI Commands
+</details>
+
+<details>
+
+<summary>CLI Commands</summary>
 
 ```bash
 # Read temperature (default mode, returns millidegrees)
@@ -125,35 +129,21 @@ quectel_rm520n_temp --debug
 quectel_rm520n_temp --help
 ```
 
-### Service Management
+</details>
 
-```bash
-# Start/stop service
-/etc/init.d/quectel_rm520n_thermal start|stop|restart
+<details>
 
-# Check status
-/etc/init.d/quectel_rm520n_thermal status
-
-# Update config
-quectel_rm520n_temp config
-```
-
-### Temperature Interfaces
+<summary>Temperature Interfaces</summary>
 
 - **Hwmon**: `/sys/class/hwmon/hwmonX/temp1_input` (primary)
 - **Kernel**: `/sys/kernel/quectel_rm520n_thermal/temp`
 - **Thermal**: `/sys/devices/virtual/thermal/thermal_zoneX/temp`
 
-### Temperature Output Format
-
-- **Default**: Returns temperature in millidegrees (e.g., `43000` for 43°C)
-- **Celsius Option**: Use `--celsius` flag to return temperature in degrees (e.g., `43`)
-- **Watch Mode**: Use `--watch` flag to continuously monitor temperature (interval configurable via UCI)
-- **Consistent**: Both daemon and direct AT command modes return the same format
+</details>
 
 ## Configuration
 
-The thermal management system is configured through the UCI (Unified Configuration Interface) system. The main configuration file is located at `/etc/config/quectel_rm520n_thermal`.
+The thermal management system is configured through the UCI system. The configuration file is located at `/etc/config/quectel_rm520n_thermal`.
 
 ### Basic Settings
 
@@ -223,55 +213,13 @@ This package works with any modem that:
 - Returns temperature data in a format similar to Quectel RM520N
 - Uses a ttyUSB serial port for communication
 
-## Thermal Framework Integration
-
-This package provides full integration with the Linux kernel thermal framework, the standard way to handle thermal management in Linux systems.
-
-### Standard Interfaces
-
-The thermal zone exposes standard Linux interfaces:
-
-```bash
-# Thermal zone
-/sys/class/thermal/thermal_zoneX/
-├── temp                    # Current temperature (millidegrees)
-├── type                    # "quectel_rm520n_modem"
-├── mode                    # enabled/disabled
-├── trip_point_0_temp       # Critical trip point (from DTS)
-├── trip_point_0_type       # "critical"
-├── trip_point_1_temp       # Hot trip point (from DTS)
-├── trip_point_1_type       # "hot"
-└── ...
-
-# hwmon interface (for monitoring tools)
-/sys/class/hwmon/hwmonX/
-├── temp1_input            # Current temperature (millidegrees)
-├── temp1_min              # Minimum threshold
-├── temp1_max              # Maximum threshold
-└── temp1_crit             # Critical threshold
-```
-
-### With vs Without Device Tree
-
-**With Device Tree (Recommended):**
-
-- Trip points defined in DTS
-- Automatic thermal events from kernel
-- Can bind to cooling devices
-- Full thermal management
-
-**Without Device Tree (Fallback):**
-
-- Basic temperature monitoring only
-- No automatic trip point handling
-- Manual monitoring via hwmon/sysfs
-- No cooling device integration
-
 ## Device Tree Configuration
 
 For full thermal framework integration with automatic trip point handling and cooling device support, configure the thermal zone in your Device Tree.
 
-### Basic Thermal Zone (Monitoring Only)
+<details>
+
+<summary>Basic Thermal Zone (Monitoring Only)</summary>
 
 ```dts
 / {
@@ -317,7 +265,11 @@ For full thermal framework integration with automatic trip point handling and co
 };
 ```
 
-### With Cooling Device (Fan Control)
+</details>
+
+<details>
+
+<summary>With Cooling Device (Fan Control)</summary>
 
 To bind trip points to a cooling device (e.g., PWM fan), add cooling-maps:
 
@@ -381,12 +333,7 @@ To bind trip points to a cooling device (e.g., PWM fan), add cooling-maps:
 
 **Note**: Replace `<&fan>` with your actual cooling device phandle. Common cooling devices: PWM fans (`<&pwm_fan>`), GPIO fans (`<&gpio_fan>`), CPU frequency scaling (`<&cpu0>` for passive cooling/throttling).
 
-### Trip Point Types
-
-- **critical**: Emergency level - kernel may trigger shutdown
-- **hot**: High temperature warning, logged to kernel messages
-- **active**: Activate cooling devices (fans, etc.)
-- **passive**: Reduce device performance (throttling)
+</details>
 
 See `quectel_rm520n_thermal_overlay.dts.example` in the project root for a complete Device Tree overlay example.
 
@@ -401,7 +348,9 @@ See `quectel_rm520n_thermal_overlay.dts.example` in the project root for a compl
 | Hwmon not found | Ensure kernel modules are loaded |
 | Wrong temperature values | Check temperature parsing prefixes in UCI config |
 
-### Debug Mode
+<details>
+
+<summary>Debug Mode</summary>
 
 ```bash
 # Enable debug logging
@@ -418,7 +367,11 @@ uci commit quectel_rm520n_thermal
 /sbin/reload_config
 ```
 
-### Finding Hwmon Interface
+</details>
+
+<details>
+
+<summary>Finding Hwmon Interface</summary>
 
 ```bash
 # List all hwmon devices
@@ -432,7 +385,11 @@ for hwmon in /sys/class/hwmon/*; do \
 done
 ```
 
-### Different Modem Models
+</details>
+
+<details>
+
+<summary>Different Modem Models</summary>
 
 If using a different modem model, check the AT+QTEMP response format and adjust the temperature prefixes:
 
@@ -447,3 +404,5 @@ uci set quectel_rm520n_thermal.settings.temp_pa_prefix='your-pa-prefix'
 uci commit quectel_rm520n_thermal
 /sbin/reload_config
 ```
+
+</details>
