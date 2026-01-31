@@ -474,12 +474,10 @@ static int quectel_hwmon_probe(struct platform_device *pdev)
  *
  * Called when the platform device is removed. Currently a no-op
  * as devm_* functions handle cleanup automatically.
- *
- * Return: Always 0 (success)
  */
-static int quectel_hwmon_remove(struct platform_device *pdev)
+static void quectel_hwmon_remove(struct platform_device *pdev)
 {
-    return 0;
+    (void)pdev;
 }
 
 /**
@@ -503,7 +501,7 @@ MODULE_DEVICE_TABLE(of, quectel_hwmon_of_match);
  */
 static struct platform_driver quectel_hwmon_driver = {
     .probe = quectel_hwmon_probe,
-    .remove = quectel_hwmon_remove,
+    .remove_new = quectel_hwmon_remove,
     .driver = {
         .name = "quectel_rm520n_temp_sensor_hwmon",
         .of_match_table = quectel_hwmon_of_match,
