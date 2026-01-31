@@ -16,39 +16,193 @@ jobs:
         include:
           # 24.10
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'x86_64'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'x86_64'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'x86_64'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'x86_64'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'x86_64'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'aarch64_cortex-a53'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'aarch64_cortex-a53'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'aarch64_cortex-a53'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'aarch64_cortex-a72'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'arm_cortex-a7_neon-vfpv4'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'arm_cortex-a7_neon-vfpv4'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'arm_cortex-a7_neon-vfpv4'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a7_neon-vfpv4'
 
           - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'arm_cortex-a7_neon-vfpv4'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'arm_cortex-a9'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'mediatek-filogic'
+            target: 'mediatek/filogic'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'mediatek-filogic'
+            target: 'mediatek/filogic'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'mediatek-filogic'
+            target: 'mediatek/filogic'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'mediatek-filogic'
             target: 'mediatek/filogic'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'mediatek-filogic'
+            target: 'mediatek/filogic'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
             arch: 'bcm27xx-bcm2711'
             target: 'bcm27xx/bcm2711'
 
           - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
+            openwrt_build_version: '24.10.5'
+            arch: 'bcm27xx-bcm2711'
+            target: 'bcm27xx/bcm2711'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
             arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'mips_24kc'
+
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
+            arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
+            arch: 'mips_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.1'
+            arch: 'mipsel_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.2'
+            arch: 'mipsel_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.3'
+            arch: 'mipsel_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.4'
+            arch: 'mipsel_24kc'
+
+          - openwrt_version: '24.10'
+            openwrt_build_version: '24.10.5'
             arch: 'mipsel_24kc'
       fail-fast: false
 
@@ -59,7 +213,7 @@ jobs:
       artifacts_patterns: |
         kmod-quectel-rm520n-thermal*.ipk
         quectel-rm520n-thermal*.ipk
-        prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk
+        prometheus-node-exporter-lua-*quectel-rm520n-thermal*.ipk
       openwrt_version: ${{ matrix.openwrt_version }}
       openwrt_build_version: ${{ matrix.openwrt_build_version }}
       arch: ${{ matrix.arch }}
