@@ -29,9 +29,9 @@ jobs:
           #   openwrt_build_version: '24.10.4'
           #   arch: 'x86_64'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
-            arch: 'aarch64_cortex-a53'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.3'
+          #   arch: 'aarch64_cortex-a53'
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.4'
@@ -77,7 +77,7 @@ jobs:
       artifacts_patterns: |
         kmod-quectel-rm520n-thermal*.ipk
         quectel-rm520n-thermal*.ipk
-        prometheus-node-exporter-ucode-*quectel-rm520n-thermal*.ipk
+        prometheus-node-exporter-lua-*quectel-rm520n-thermal*.ipk
       openwrt_version: ${{ matrix.openwrt_version }}
       openwrt_build_version: ${{ matrix.openwrt_build_version }}
       arch: ${{ matrix.arch }}
