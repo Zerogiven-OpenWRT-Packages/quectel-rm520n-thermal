@@ -60,9 +60,8 @@ define Package/prometheus-node-exporter-lua-$(PKG_NAME)
 	TITLE:=Prometheus Lua collector for Quectel RM520N modem
 	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
 	MAINTAINER:=$(PKG_MAINTAINER)
-	DEPENDS:=+$(PKG_NAME)
+	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
 endef
-#	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
 
 define Package/prometheus-node-exporter-lua-$(PKG_NAME)/description
 	Lua collector for prometheus-node-exporter-lua that exports
