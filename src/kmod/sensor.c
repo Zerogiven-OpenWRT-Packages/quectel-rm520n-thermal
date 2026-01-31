@@ -25,15 +25,6 @@
 #include "../include/common.h"
 #include "../include/kmod_sensor.h"
 
-/*
- * The THERMAL_EVENT_UNSPECIFIED enum was introduced in kernel 5.17
- * For earlier kernels, we define it here to ensure compatibility
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
-/* Use 0 as a safe default value for kernels before 5.17 */
-#define THERMAL_EVENT_UNSPECIFIED 0
-#endif
-
 /* Data structure to store the current temperature (in m°C) */
 struct quectel_temp_data {
     struct thermal_zone_device *tzd; /* Handle to the Thermal Zone */
@@ -59,7 +50,7 @@ static int quectel_temp_get_temp(struct thermal_zone_device *tzd, int *temp)
         return -EINVAL;
     }
     
-    data = tzd->devdata;
+    data = thermal_zone_device_priv(tzd);
     if (!data) {
         return -EINVAL;
     }
@@ -216,19 +207,14 @@ static int quectel_temp_probe(struct platform_device *pdev)
  *
  * Cleans up the virtual thermal sensor by removing sysfs attributes
  * and logging the removal. Called when the module is unloaded.
- *
- * Return: 0 on success
  */
-static int quectel_temp_remove(struct platform_device *pdev)
+static void quectel_temp_remove(struct platform_device *pdev)
 {
-    /* Validate platform device */
-    if (!pdev) {
-        return -EINVAL;
-    }
-    
+    if (!pdev)
+        return;
+
     device_remove_file(&pdev->dev, &dev_attr_cur_temp);
     dev_info(&pdev->dev, "Quectel RM520N virtual sensor removed\n");
-    return 0;
 }
 
 /* Device Tree match table for automatic binding */
@@ -241,7 +227,7 @@ MODULE_DEVICE_TABLE(of, quectel_temp_of_match);
 /* Platform driver structure */
 static struct platform_driver quectel_temp_driver = {
     .probe = quectel_temp_probe,
-    .remove = quectel_temp_remove,
+    .remove_new = quectel_temp_remove,
     .driver = {
         .name = "quectel_rm520n_temp_sensor",
         .of_match_table = quectel_temp_of_match,

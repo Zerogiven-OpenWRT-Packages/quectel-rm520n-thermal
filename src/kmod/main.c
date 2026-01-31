@@ -23,11 +23,6 @@
 #include "../include/common.h"
 #include "../include/kmod_main.h"
 
-/* Compatibility defines for kernel version differences */
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
 /* Temperature threshold storage (in m°C) */
 static int temp_min = DEFAULT_TEMP_MIN;
 static int temp_max = DEFAULT_TEMP_MAX;
