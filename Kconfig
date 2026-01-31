@@ -27,13 +27,14 @@ config PACKAGE_QUECTEL_RM520N_THERMAL
         - Watch mode for continuous temperature monitoring
         - JSON output support for scripting
 
-config PACKAGE_PROMETHEUS_NODE_EXPORTER_UCODE_QUECTEL_RM520N_THERMAL
-    bool "Prometheus collector for Quectel RM520N modem"
+config PACKAGE_PROMETHEUS_NODE_EXPORTER_LUA_QUECTEL_RM520N_THERMAL
+    bool "Prometheus Lua collector for Quectel RM520N modem"
     depends on PACKAGE_QUECTEL_RM520N_THERMAL
     help
-      ucode collector for prometheus-node-exporter-ucode that exports
+      Lua collector for prometheus-node-exporter-lua that exports
       Quectel RM520N modem temperature metrics and daemon statistics.
+      Reads from sysfs when daemon is running, falls back to CLI otherwise.
 
-      Requires: prometheus-node-exporter-ucode
+      Requires: prometheus-node-exporter-lua, lua-cjson
 
 endmenu

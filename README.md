@@ -66,7 +66,7 @@ opkg install kmod-quectel-rm520n-thermal.ipk
 opkg install quectel-rm520n-thermal.ipk
 
 # Optional: Install Prometheus metrics collector
-opkg install prometheus-node-exporter-ucode-quectel-rm520n-thermal.ipk
+opkg install prometheus-node-exporter-lua-quectel-rm520n-thermal.ipk
 ```
 
 ### From Source
