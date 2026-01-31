@@ -2,10 +2,11 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME    := quectel-rm520n-thermal
-PKG_VERSION := 1.3.1
+PKG_VERSION := 1.4.0
 PKG_RELEASE := 1
 
 PKG_MAINTAINER     := CSoellinger
+PKG_URL            := https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
 PKG_LICENSE        := GPL
 PKG_COPYRIGHT_YEAR := $(shell date +%Y)
 
@@ -30,7 +31,6 @@ endef
 define KernelPackage/$(PKG_NAME)/description
   Kernel modules for monitoring and managing the Quectel RM520N modem temperature.
   Provides sysfs access, virtual thermal sensors, and hwmon integration.
-  Includes configurable temperature thresholds and millidegree precision.
 endef
 
 # --- Userspace package definition ---
@@ -38,7 +38,7 @@ define Package/$(PKG_NAME)
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Quectel RM520N Thermal Management Tools
-  URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
+  URL:=$(PKG_URL)
   MAINTAINER:=$(PKG_MAINTAINER)
   DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs +libubox
 endef
@@ -58,7 +58,7 @@ define Package/prometheus-node-exporter-lua-$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
 	TITLE:=Prometheus Lua collector for Quectel RM520N modem
-	URL:=https://github.com/Zerogiven-OpenWRT-Packages/Quectel-RM520N-Thermal
+	URL:=$(PKG_URL)
 	MAINTAINER:=$(PKG_MAINTAINER)
 	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
 	PKGARCH:=all
