@@ -44,33 +44,6 @@ apk add build-base uci-dev sysfs-utils-dev libubox-dev
 - Linux kernel headers matching your target system
 - OpenWRT SDK (for cross-compilation)
 
-### Building Locally
-
-```bash
-# Build userspace tool
-cd src
-make
-
-# Test locally
-./quectel_rm520n_temp --help
-./quectel_rm520n_temp --version
-
-# Clean build artifacts
-make clean
-```
-
-### Cross-Compilation for OpenWRT
-
-```bash
-# Set up OpenWRT toolchain
-export PATH=/path/to/openwrt/staging_dir/toolchain-*/bin:$PATH
-export STAGING_DIR=/path/to/openwrt/staging_dir
-
-# Cross-compile
-cd src
-make CC=aarch64-openwrt-linux-gcc
-```
-
 ## Making Changes
 
 ### Repository Structure
@@ -93,9 +66,8 @@ quectel-rm520n-thermal/
 ├── files/                  # OpenWRT package files
 │   ├── quectel_rm520n_thermal         # UCI config
 │   ├── quectel_rm520n_thermal.init    # Init script
-│   └── quectel_rm520n_thermal.uc      # Prometheus collector
+│   └── quectel_rm520n_thermal.lua     # Prometheus collector
 ├── Makefile                # OpenWRT package Makefile
-├── CLAUDE.md               # AI assistant context
 └── README.md               # Documentation
 ```
 
@@ -107,13 +79,34 @@ quectel-rm520n-thermal/
 
 ## Coding Standards
 
-### C Code Style
+### C Standards
 
-- Use C90/C99 standard for kernel modules (no mixed declarations and code)
-- Use 4-space indentation (no tabs in source files)
-- Keep lines under 100 characters when practical
+| Component | Standard | Compiler Flag |
+|-----------|----------|---------------|
+| Userspace code | GNU17 | `-std=gnu17` |
+| Kernel modules | GNU11 | (kernel default) |
+
+### Userspace Code Style
+
+- Use 4-space indentation
+- Keep lines under 100 characters
 - Use descriptive variable and function names
-- Add comments for complex logic
+- Use `<stdbool.h>` for `bool`, `true`, `false`
+- Prefer designated initializers: `{ .field = value }`
+
+### Kernel Module Code Style
+
+Follow the [Linux Kernel Coding Style](https://www.kernel.org/doc/html/latest/process/coding-style.html):
+
+- **Indentation**: Tabs (8-character width), not spaces
+- **Brace placement**: K&R style
+  - Functions: opening brace on new line
+  - Control structures: opening brace on same line
+- **Line length**: 80 characters preferred, 100 max
+- **Naming**: Lowercase with underscores, short local variables
+- **No typedefs** for structs (use `struct name` directly)
+- **Comments**: Explain "what", not "how"
+- **Error handling**: Use `goto` for cleanup paths
 
 ### Security Guidelines
 
@@ -130,15 +123,13 @@ quectel-rm520n-thermal/
 - Always null-terminate strings
 - Free allocated memory appropriately
 
-### Example Code Style
+### Example: Userspace Code Style
 
 ```c
 /**
  * function_name - Brief description
  * @param1: Description of first parameter
  * @param2: Description of second parameter
- *
- * Detailed description of what the function does.
  *
  * Return: Description of return value
  */
@@ -159,6 +150,33 @@ int function_name(const char *param1, int param2)
     }
 
     return 0;
+}
+```
+
+### Example: Kernel Module Code Style
+
+```c
+/**
+ * quectel_temp_show - Read temperature from sysfs
+ * @kobj: Kernel object pointer
+ * @attr: Kernel object attribute
+ * @buf: Output buffer
+ *
+ * Return: Number of bytes written to buffer
+ */
+static ssize_t quectel_temp_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	int temp;
+
+	if (!buf)
+		return -EINVAL;
+
+	mutex_lock(&temp_lock);
+	temp = modem_temp;
+	mutex_unlock(&temp_lock);
+
+	return sysfs_emit(buf, "%d\n", temp);
 }
 ```
 
