@@ -79,6 +79,9 @@ jobs:
         kmod-quectel-rm520n-thermal*.ipk
         quectel-rm520n-thermal*.ipk
         prometheus-node-exporter-lua-*quectel-rm520n-thermal*.ipk
+        kmod-quectel-rm520n-thermal*.apk
+        quectel-rm520n-thermal*.apk
+        prometheus-node-exporter-lua-*quectel-rm520n-thermal*.apk
       openwrt_version: ${{ matrix.openwrt_version }}
       openwrt_build_version: ${{ matrix.openwrt_build_version }}
       arch: ${{ matrix.arch }}
