@@ -44,7 +44,8 @@ jobs:
 
           - openwrt_version: '24.10'
             openwrt_build_version: '24.10.5'
-            arch: 'aarch64_cortex-a53'
+            arch: 'mediatek-filogic'
+            # arch: 'aarch64_cortex-a53'
             target: 'mediatek/filogic'
 
           # - openwrt_version: '24.10'

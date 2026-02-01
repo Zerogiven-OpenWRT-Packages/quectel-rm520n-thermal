@@ -61,7 +61,6 @@ define Package/prometheus-node-exporter-lua-$(PKG_NAME)
 	URL:=$(PKG_URL)
 	MAINTAINER:=$(PKG_MAINTAINER)
 	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
-	PKGARCH:=all
 endef
 
 define Package/prometheus-node-exporter-lua-$(PKG_NAME)/description
