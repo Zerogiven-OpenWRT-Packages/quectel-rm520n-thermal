@@ -89,7 +89,7 @@ define Build/Compile
 		CROSS_COMPILE="$(TARGET_CROSS)"
 
   # 2) Combined daemon and CLI tool with UCI config
-	$(TARGET_CC) $(TARGET_CFLAGS) -I$(PKG_BUILD_DIR)/include -o $(PKG_BUILD_DIR)/$(BINARY_NAME) \
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu17 -I$(PKG_BUILD_DIR)/include -o $(PKG_BUILD_DIR)/$(BINARY_NAME) \
 		$(PKG_BUILD_DIR)/main.c \
 		$(PKG_BUILD_DIR)/serial.c \
 		$(PKG_BUILD_DIR)/config.c \
