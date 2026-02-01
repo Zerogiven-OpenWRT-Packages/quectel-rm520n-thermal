@@ -5,8 +5,6 @@ on:
     tags:
       - 'v*'
 
-# Minimize GITHUB_TOKEN permissions for security
-# Individual jobs override as needed (e.g., create-release needs contents: write)
 permissions: {}
 
 jobs:
@@ -252,6 +250,9 @@ jobs:
         kmod-quectel-rm520n-thermal*.ipk
         quectel-rm520n-thermal*.ipk
         prometheus-node-exporter-lua-*quectel-rm520n-thermal*.ipk
+        kmod-quectel-rm520n-thermal*.apk
+        quectel-rm520n-thermal*.apk
+        prometheus-node-exporter-lua-*quectel-rm520n-thermal*.apk
       openwrt_version: ${{ matrix.openwrt_version }}
       openwrt_build_version: ${{ matrix.openwrt_build_version }}
       arch: ${{ matrix.arch }}
@@ -266,7 +267,6 @@ jobs:
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-release.yml@main
     with:
       artifact_pattern: 'quectel-rm520n-thermal-*'
-      release_file_pattern: '*.ipk'
       tag_name: ${{ github.ref_name }}
     secrets:
       RELEASE_TOKEN: ${{ secrets.OWRT_PACKAGE_RELEASE_TOKEN }}
