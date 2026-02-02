@@ -155,17 +155,10 @@ int main(int argc, char *argv[])
                 break;
             case 'b':
                 if (optarg) {
-                    int baud = atoi(optarg);
-                    switch (baud) {
-                        case 9600: config.baud_rate = B9600; break;
-                        case 19200: config.baud_rate = B19200; break;
-                        case 38400: config.baud_rate = B38400; break;
-                        case 57600: config.baud_rate = B57600; break;
-                        case 115200: config.baud_rate = B115200; break;
-                        default:
-                            fprintf(stderr, "Error: Invalid baud rate '%s'. Supported values: 9600, 19200, 38400, 57600, 115200\n", optarg);
-                            fprintf(stderr, "Try '%s --help' for more information\n", argv[0]);
-                            return 2;
+                    if (config_parse_baud_rate(optarg, &config.baud_rate) != 0) {
+                        fprintf(stderr, "Error: Invalid baud rate '%s'. Supported values: 9600, 19200, 38400, 57600, 115200\n", optarg);
+                        fprintf(stderr, "Try '%s --help' for more information\n", argv[0]);
+                        return 2;
                     }
                 } else {
                     fprintf(stderr, "Error: --baud requires an argument. Example: --baud 115200\n");

@@ -53,6 +53,10 @@ static daemon_stats_t g_stats = {0};
 /* Daemon start time for uptime calculation */
 static time_t g_daemon_start_time = 0;
 
+/* Cached thermal zone path for performance (avoid repeated directory scans) */
+static char g_thermal_zone_path[PATH_MAX_LEN] = {0};
+static int g_thermal_zone_cached = 0;
+
 /* ============================================================================
  * CLEANUP FUNCTIONS
  * ============================================================================ */
@@ -74,6 +78,93 @@ static void daemon_cleanup(void)
 
     // Release daemon lock
     release_daemon_lock();
+}
+
+/* ============================================================================
+ * THERMAL ZONE HELPER FUNCTIONS
+ * ============================================================================ */
+
+/**
+ * find_modem_thermal_zone - Find and cache the modem thermal zone path
+ *
+ * Discovers the thermal zone path for the Quectel modem and caches the result
+ * for subsequent calls to avoid repeated directory scans.
+ *
+ * @return 0 on success (path cached), -1 if no modem thermal zone found
+ */
+static int find_modem_thermal_zone(void)
+{
+    /* Return cached path if available and still valid */
+    if (g_thermal_zone_cached && g_thermal_zone_path[0] != '\0') {
+        if (access(g_thermal_zone_path, W_OK) == 0) {
+            return 0;
+        }
+        /* Cached path no longer valid, rescan */
+        logging_debug("Cached thermal zone path no longer accessible, rescanning");
+        g_thermal_zone_cached = 0;
+        g_thermal_zone_path[0] = '\0';
+    }
+
+    DIR *thermal_dir = opendir("/sys/devices/virtual/thermal");
+    if (!thermal_dir) {
+        return -1;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(thermal_dir)) != NULL) {
+        if (strncmp(entry->d_name, "thermal_zone", 12) != 0) {
+            continue;
+        }
+
+        char type_path[PATH_MAX_LEN];
+        if (snprintf(type_path, sizeof(type_path), "/sys/devices/virtual/thermal/%s/type",
+                     entry->d_name) >= (int)sizeof(type_path)) {
+            continue;
+        }
+
+        FILE *type_fp = fopen(type_path, "r");
+        if (!type_fp) {
+            continue;
+        }
+
+        char zone_type[DEVICE_NAME_LEN];
+        if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
+            zone_type[strcspn(zone_type, "\n")] = '\0';
+
+            /* Safety check: Skip system thermal zones */
+            if (strstr(zone_type, "cpu") != NULL ||
+                strstr(zone_type, "gpu") != NULL ||
+                strstr(zone_type, "soc") != NULL ||
+                strstr(zone_type, "board") != NULL) {
+                fclose(type_fp);
+                continue;
+            }
+
+            /* Check for modem thermal zone types */
+            if (strcmp(zone_type, "quectel_rm520n") == 0 ||
+                strcmp(zone_type, "modem_thermal") == 0 ||
+                strcmp(zone_type, "modem-thermal") == 0 ||
+                strcmp(zone_type, "quectel-thermal") == 0 ||
+                strcmp(zone_type, "rm520n-thermal") == 0) {
+
+                fclose(type_fp);
+
+                /* Build and cache the temp path */
+                if (snprintf(g_thermal_zone_path, sizeof(g_thermal_zone_path),
+                            "/sys/devices/virtual/thermal/%s/temp",
+                            entry->d_name) < (int)sizeof(g_thermal_zone_path)) {
+                    g_thermal_zone_cached = 1;
+                    logging_debug("Found and cached modem thermal zone: %s", g_thermal_zone_path);
+                    closedir(thermal_dir);
+                    return 0;
+                }
+            }
+        }
+        fclose(type_fp);
+    }
+
+    closedir(thermal_dir);
+    return -1;
 }
 
 /* ============================================================================
@@ -323,8 +414,14 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
             char response[MAX_RESPONSE];
             if (send_at_command(g_serial_fd, AT_COMMAND, response, sizeof(response)) > 0) {
                 // Process temperature response
-                logging_debug("Raw AT+QTEMP response length: %zu bytes", strlen(response));
-                logging_debug("Raw AT+QTEMP response: %s", response);
+                size_t resp_len = strlen(response);
+                logging_debug("Raw AT+QTEMP response length: %zu bytes", resp_len);
+                // Truncate logged response to prevent log flooding (max 256 chars)
+                if (resp_len > 256) {
+                    logging_debug("Raw AT+QTEMP response (truncated): %.256s...", response);
+                } else {
+                    logging_debug("Raw AT+QTEMP response: %s", response);
+                }
                 int modem_temp = 0, ap_temp = 0, pa_temp = 0;
                 if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp,
                                        loop_config.temp_modem_prefix, loop_config.temp_ap_prefix, loop_config.temp_pa_prefix)) {
@@ -411,74 +508,18 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     }
                     
                     // Write to thermal zone if available (for DTS integration)
-                    // Find the thermal zone that belongs to our modem
-                    DIR *thermal_dir = opendir("/sys/devices/virtual/thermal");
-                    if (thermal_dir) {
-                        struct dirent *entry;
-                        while ((entry = readdir(thermal_dir)) != NULL) {
-                            if (strncmp(entry->d_name, "thermal_zone", 12) == 0) {
-                                char type_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                                char temp_path[PATH_MAX_LEN];  // Must accommodate entry->d_name (up to 255 chars) + path prefix
-                                if (snprintf(type_path, sizeof(type_path), "/sys/devices/virtual/thermal/%s/type", entry->d_name) >= sizeof(type_path)) {
-                                    logging_warning("Thermal zone type path truncated, skipping: %s", entry->d_name);
-                                    continue;
-                                }
-                                if (snprintf(temp_path, sizeof(temp_path), "/sys/devices/virtual/thermal/%s/temp", entry->d_name) >= sizeof(temp_path)) {
-                                    logging_warning("Thermal zone temp path truncated, skipping: %s", entry->d_name);
-                                    continue;
-                                }
-                                
-                                // Check if this thermal zone is for our modem
-                                FILE *type_fp = fopen(type_path, "r");
-                                if (type_fp) {
-                                    char zone_type[DEVICE_NAME_LEN];
-                                    if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
-                                        zone_type[strcspn(zone_type, "\n")] = '\0';
-                                        
-                                        // Log all thermal zones for debugging
-                                        logging_debug("Checking thermal zone: %s (type: %s)", entry->d_name, zone_type);
-                                        
-                                        // Safety check: Never write to CPU, GPU, or system thermal zones
-                                        if (strstr(zone_type, "cpu") != NULL || 
-                                            strstr(zone_type, "gpu") != NULL ||
-                                            strstr(zone_type, "soc") != NULL ||
-                                            strstr(zone_type, "board") != NULL) {
-                                            logging_debug("Skipping system thermal zone: %s (type: %s)", entry->d_name, zone_type);
-                                            fclose(type_fp);
-                                            continue;
-                                        }
-                                        
-                                        // Only write to thermal zones that are specifically for modem/Quectel
-                                        // Avoid CPU, GPU, or other system thermal zones
-                                        if (strcmp(zone_type, "quectel_rm520n") == 0 || 
-                                            strcmp(zone_type, "modem_thermal") == 0 ||
-                                            strcmp(zone_type, "modem-thermal") == 0 ||
-                                            strcmp(zone_type, "quectel-thermal") == 0 ||
-                                            strcmp(zone_type, "rm520n-thermal") == 0) {
-                                            
-                                            fclose(type_fp);
-                                            logging_debug("Found modem thermal zone: %s (type: %s)", entry->d_name, zone_type);
-
-                                            // Found our modem thermal zone, write temperature
-                                            // Avoid TOCTOU race by directly attempting fopen without access() check
-                                            FILE *temp_fp = fopen(temp_path, "w");
-                                            if (temp_fp) {
-                                                fprintf(temp_fp, "%d", best_temp_mdeg);
-                                                fclose(temp_fp);
-                                                logging_info("Wrote temperature to modem thermal zone: %s", temp_path);
-                                            } else {
-                                                logging_debug("Modem thermal zone temp file not writable: %s", temp_path);
-                                            }
-                                            break; // Found our zone, no need to check others
-                                        } else {
-                                            logging_debug("Skipping non-modem thermal zone: %s (type: %s)", entry->d_name, zone_type);
-                                        }
-                                    }
-                                    fclose(type_fp);
-                                }
-                            }
+                    // Use cached thermal zone path for performance
+                    if (find_modem_thermal_zone() == 0) {
+                        FILE *temp_fp = fopen(g_thermal_zone_path, "w");
+                        if (temp_fp) {
+                            fprintf(temp_fp, "%d", best_temp_mdeg);
+                            fclose(temp_fp);
+                            logging_debug("Wrote temperature to modem thermal zone: %s", g_thermal_zone_path);
+                        } else {
+                            logging_debug("Modem thermal zone temp file not writable: %s", g_thermal_zone_path);
+                            /* Invalidate cache so we rescan next time */
+                            g_thermal_zone_cached = 0;
                         }
-                        closedir(thermal_dir);
                     }
                 } else {
                     // Temperature parsing failed

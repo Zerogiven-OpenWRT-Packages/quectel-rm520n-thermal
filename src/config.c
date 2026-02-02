@@ -74,14 +74,14 @@ void config_set_defaults(config_t *config)
 {
     if (!config) return;
 
-    strcpy(config->serial_port, "/dev/ttyUSB2");
+    SAFE_STRNCPY(config->serial_port, "/dev/ttyUSB2", sizeof(config->serial_port));
     config->interval = 10;
     config->baud_rate = B115200;
-    strcpy(config->error_value, "N/A");
-    strcpy(config->log_level, "info");
-    strcpy(config->temp_modem_prefix, "modem-ambient-usr");
-    strcpy(config->temp_ap_prefix, "cpuss-0-usr");
-    strcpy(config->temp_pa_prefix, "modem-lte-sub6-pa1");
+    SAFE_STRNCPY(config->error_value, "N/A", sizeof(config->error_value));
+    SAFE_STRNCPY(config->log_level, "info", sizeof(config->log_level));
+    SAFE_STRNCPY(config->temp_modem_prefix, "modem-ambient-usr", sizeof(config->temp_modem_prefix));
+    SAFE_STRNCPY(config->temp_ap_prefix, "cpuss-0-usr", sizeof(config->temp_ap_prefix));
+    SAFE_STRNCPY(config->temp_pa_prefix, "modem-lte-sub6-pa1", sizeof(config->temp_pa_prefix));
 }
 
 /**
@@ -119,18 +119,27 @@ int config_parse_log_level(const char *level_str)
 int config_parse_baud_rate(const char *baud_str, speed_t *baud_rate)
 {
     if (!baud_str || !baud_rate) return -1;
-    
-    int baud = atoi(baud_str);
-    logging_debug("config_parse_baud_rate: input='%s', parsed=%d", baud_str, baud);
-    
+
+    char *endptr;
+    errno = 0;
+    long baud = strtol(baud_str, &endptr, 10);
+
+    /* Check for conversion errors */
+    if (errno != 0 || endptr == baud_str || *endptr != '\0') {
+        logging_debug("config_parse_baud_rate: invalid input '%s'", baud_str);
+        return -1;
+    }
+
+    logging_debug("config_parse_baud_rate: input='%s', parsed=%ld", baud_str, baud);
+
     switch (baud) {
         case 9600:   *baud_rate = B9600; break;
         case 19200:  *baud_rate = B19200; break;
         case 38400:  *baud_rate = B38400; break;
         case 57600:  *baud_rate = B57600; break;
         case 115200: *baud_rate = B115200; break;
-        default: 
-            logging_debug("config_parse_baud_rate: unsupported baud rate %d", baud);
+        default:
+            logging_debug("config_parse_baud_rate: unsupported baud rate %ld", baud);
             return -1;
     }
     

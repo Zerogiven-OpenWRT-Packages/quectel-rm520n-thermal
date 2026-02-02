@@ -4,10 +4,19 @@
  * @author Christopher Sollinger
  * @date 2025
  * @license GPL
- * 
+ *
  * This module provides UCI configuration functions for updating kernel module
  * temperature thresholds via sysfs interfaces. Integrated into the main binary
  * as a subcommand.
+ *
+ * ENVIRONMENT VARIABLES:
+ *   QUECTEL_HWMON_OVERRIDE - Override automatic hwmon device detection.
+ *     Set to the hwmon device number (e.g., "3" for hwmon3) to force
+ *     the tool to use a specific hwmon device instead of auto-detecting.
+ *     This is a SECURITY-SENSITIVE setting: only set this in trusted
+ *     environments where you control the hwmon device numbering.
+ *     Valid range: 0-255. Invalid values are logged and ignored.
+ *     Example: QUECTEL_HWMON_OVERRIDE=3 quectel_rm520n_temp config
  */
 
 #include <stdio.h>
@@ -18,8 +27,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
+#include <ctype.h>
 #include <uci.h>
 #include "include/logging.h"
+#include "include/common.h"
 
 /* ============================================================================
  * CONSTANTS & CONFIGURATION
@@ -129,14 +140,34 @@ static int read_uci_option(const char *option, char *buffer, size_t buffer_size)
 
 /**
  * Convert Celsius to millidegrees Celsius
- * 
- * @param celsius Temperature in Celsius
- * @return Temperature in millidegrees Celsius
+ *
+ * @param celsius_str Temperature string in Celsius
+ * @return Temperature in millidegrees Celsius, or DEFAULT_TEMP_DEFAULT on error
  */
 static int celsius_to_millidegrees(const char *celsius_str)
 {
-    float celsius = atof(celsius_str);
-    return (int)(celsius * 1000.0f);
+    if (!celsius_str || *celsius_str == '\0') {
+        logging_warning("celsius_to_millidegrees: empty input, using default");
+        return DEFAULT_TEMP_DEFAULT;
+    }
+
+    char *endptr;
+    errno = 0;
+    double celsius = strtod(celsius_str, &endptr);
+
+    /* Check for conversion errors */
+    if (errno != 0 || endptr == celsius_str || (*endptr != '\0' && !isspace(*endptr))) {
+        logging_warning("celsius_to_millidegrees: invalid input '%s', using default", celsius_str);
+        return DEFAULT_TEMP_DEFAULT;
+    }
+
+    /* Validate range to prevent overflow (use float limits for *1000) */
+    if (celsius < (TEMP_ABSOLUTE_MIN / 1000) || celsius > (TEMP_ABSOLUTE_MAX / 1000)) {
+        logging_warning("celsius_to_millidegrees: value %.1f out of range, using default", celsius);
+        return DEFAULT_TEMP_DEFAULT;
+    }
+
+    return (int)(celsius * 1000.0);
 }
 
 /* ============================================================================
@@ -144,108 +175,85 @@ static int celsius_to_millidegrees(const char *celsius_str)
  * ============================================================================ */
 
 /**
- * Find the Quectel hwmon device
- * 
+ * Find the Quectel hwmon device (single-pass optimized)
+ *
+ * Scans hwmon devices once, preferring exact name match over partial match.
+ *
  * @return hwmon device number on success, -1 on error
  */
 static int find_quectel_hwmon_device(void)
 {
     DIR *hwmon_dir;
     struct dirent *entry;
-    char name_path[256];
-    char dev_name[64];
-    FILE *name_fp;
     int hwmon_num = -1;
-    
+    int fallback_num = -1;  /* Partial match fallback */
+
     hwmon_dir = opendir(HWMON_BASE);
     if (!hwmon_dir) {
         return -1;
     }
-    
+
     while ((entry = readdir(hwmon_dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
-            
-        if (snprintf(name_path, sizeof(name_path), "%s/%s/name", HWMON_BASE, entry->d_name) >= sizeof(name_path)) {
+
+        /* Build paths for this device */
+        char name_path[256];
+        char verify_path[256];
+        if (snprintf(name_path, sizeof(name_path), "%s/%s/name", HWMON_BASE, entry->d_name) >= (int)sizeof(name_path))
+            continue;
+        if (snprintf(verify_path, sizeof(verify_path), "%s/%s/temp1_input", HWMON_BASE, entry->d_name) >= (int)sizeof(verify_path))
+            continue;
+
+        /* Read device name */
+        FILE *name_fp = fopen(name_path, "r");
+        if (!name_fp)
+            continue;
+
+        char dev_name[64];
+        if (fgets(dev_name, sizeof(dev_name), name_fp) == NULL) {
+            fclose(name_fp);
             continue;
         }
-        
-        name_fp = fopen(name_path, "r");
-        if (name_fp) {
-            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
-                dev_name[strcspn(dev_name, "\n")] = '\0';
-                logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
-                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
-                    // Verify this device actually has Quectel attributes
-                    char verify_path[256];
-                    if (snprintf(verify_path, sizeof(verify_path), "%s/%s/temp1_input", HWMON_BASE, entry->d_name) < sizeof(verify_path)) {
-                        if (access(verify_path, R_OK) == 0) {
-                            int selected_num = extract_hwmon_number(entry->d_name);
-                            if (selected_num >= 0) {
-                                logging_info("Selected Quectel hwmon device: %s -> extracted number %d (hwmon%d) - verified", 
-                                           entry->d_name, selected_num, selected_num);
-                                hwmon_num = selected_num;
-                                fclose(name_fp);
-                                break;
-                            } else {
-                                logging_warning("Failed to extract hwmon number from: %s", entry->d_name);
-                            }
-                        } else {
-                            logging_debug("Found hwmon device with name 'quectel_rm520n_thermal' but no temp1_input: %s", entry->d_name);
-                        }
-                    }
+        fclose(name_fp);
+        dev_name[strcspn(dev_name, "\n")] = '\0';
+
+        logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
+
+        /* Check for exact match first (highest priority) */
+        if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
+            /* Verify device has temp1_input */
+            if (access(verify_path, R_OK) == 0) {
+                int num = extract_hwmon_number(entry->d_name);
+                if (num >= 0) {
+                    logging_info("Selected Quectel hwmon device (exact match): hwmon%d", num);
+                    hwmon_num = num;
+                    break;  /* Exact match found, stop searching */
                 }
             }
-            fclose(name_fp);
+        }
+        /* Check for partial match (fallback) */
+        else if (fallback_num < 0 &&
+                 (strstr(dev_name, "quectel") != NULL || strstr(dev_name, "rm520n") != NULL)) {
+            if (access(verify_path, R_OK) == 0) {
+                int num = extract_hwmon_number(entry->d_name);
+                if (num >= 0) {
+                    logging_debug("Found Quectel-like device (partial match): hwmon%d", num);
+                    fallback_num = num;
+                    /* Continue searching for exact match */
+                }
+            }
         }
     }
-    
+
     closedir(hwmon_dir);
-    
-    // If no device found by name, try to find by attributes
-    if (hwmon_num == -1) {
-        logging_info("No hwmon device found by name, trying attribute-based detection...");
-        DIR *attr_hwmon_dir = opendir(HWMON_BASE);
-        if (attr_hwmon_dir) {
-            struct dirent *attr_entry;
-            while ((attr_entry = readdir(attr_hwmon_dir)) != NULL) {
-                if (strcmp(attr_entry->d_name, ".") == 0 || strcmp(attr_entry->d_name, "..") == 0)
-                    continue;
-                    
-                char attr_check_path[256];
-                if (snprintf(attr_check_path, sizeof(attr_check_path), "%s/%s/temp1_input", HWMON_BASE, attr_entry->d_name) < sizeof(attr_check_path)) {
-                    if (access(attr_check_path, R_OK) == 0) {
-                        // Check if this device has Quectel-like attributes
-                        char attr_name_path[256];
-                        if (snprintf(attr_name_path, sizeof(attr_name_path), "%s/%s/name", HWMON_BASE, attr_entry->d_name) < sizeof(attr_name_path)) {
-                            char attr_dev_name[64];
-                            FILE *attr_name_fp = fopen(attr_name_path, "r");
-                            if (attr_name_fp) {
-                                if (fgets(attr_dev_name, sizeof(attr_dev_name), attr_name_fp) != NULL) {
-                                    attr_dev_name[strcspn(attr_dev_name, "\n")] = '\0';
-                                    if (strstr(attr_dev_name, "quectel") != NULL || strstr(attr_dev_name, "rm520n") != NULL) {
-                                        int attr_selected_num = extract_hwmon_number(attr_entry->d_name);
-                                        if (attr_selected_num >= 0) {
-                                            logging_info("Found Quectel-like device by attributes: %s -> extracted number %d (hwmon%d)", 
-                                                       attr_entry->d_name, attr_selected_num, attr_selected_num);
-                                            hwmon_num = attr_selected_num;
-                                            fclose(attr_name_fp);
-                                            break;
-                                        } else {
-                                            logging_warning("Failed to extract hwmon number from: %s", attr_entry->d_name);
-                                        }
-                                    }
-                                }
-                                fclose(attr_name_fp);
-                            }
-                        }
-                    }
-                }
-            }
-            closedir(attr_hwmon_dir);
-        }
+
+    /* Use fallback if no exact match found */
+    if (hwmon_num < 0 && fallback_num >= 0) {
+        logging_info("Using Quectel-like device (partial match): hwmon%d", fallback_num);
+        hwmon_num = fallback_num;
     }
-    
+
     logging_info("find_quectel_hwmon_device() returning: %d", hwmon_num);
     return hwmon_num;
 }
@@ -566,83 +574,68 @@ int uci_config_mode(void)
             }
         }
         
-        // Update temp1_min
+        // Update temp1_min (direct fopen to avoid TOCTOU race)
         if (read_uci_option(UCI_TEMP_MIN, uci_value, sizeof(uci_value)) == 0) {
             temp_min = celsius_to_millidegrees(uci_value);
-            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_min", HWMON_BASE, hwmon_num) < sizeof(hwmon_path)) {
+            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_min", HWMON_BASE, hwmon_num) < (int)sizeof(hwmon_path)) {
                 logging_info("Attempting to update hwmon temp1_min at: %s", hwmon_path);
-                if (access(hwmon_path, W_OK) == 0) {
-                    logging_info("File is writable, attempting to open: %s", hwmon_path);
-                    FILE *fp = fopen(hwmon_path, "w");
-                    if (fp) {
-                        int write_result = fprintf(fp, "%d", temp_min);
-                        if (write_result > 0) {
-                            fclose(fp);
-                            logging_info("Successfully updated hwmon temp1_min to %d m°C (%0.1f°C)", temp_min, temp_min / 1000.0f);
-                            hwmon_updated++;
-                        } else {
-                            logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
-                            fclose(fp);
-                        }
+                FILE *fp = fopen(hwmon_path, "w");
+                if (fp) {
+                    int write_result = fprintf(fp, "%d", temp_min);
+                    if (write_result > 0) {
+                        fclose(fp);
+                        logging_info("Successfully updated hwmon temp1_min to %d m°C (%0.1f°C)", temp_min, temp_min / 1000.0f);
+                        hwmon_updated++;
                     } else {
-                        logging_warning("Failed to open hwmon temp1_min for writing: %s", hwmon_path);
+                        logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
+                        fclose(fp);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_min file not writable: %s", hwmon_path);
+                    logging_warning("Hwmon temp1_min file not writable: %s (errno: %d)", hwmon_path, errno);
                 }
             }
         }
 
-        // Update temp1_max
+        // Update temp1_max (direct fopen to avoid TOCTOU race)
         if (read_uci_option(UCI_TEMP_MAX, uci_value, sizeof(uci_value)) == 0) {
             temp_max = celsius_to_millidegrees(uci_value);
-            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_max", HWMON_BASE, hwmon_num) < sizeof(hwmon_path)) {
+            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_max", HWMON_BASE, hwmon_num) < (int)sizeof(hwmon_path)) {
                 logging_info("Attempting to update hwmon temp1_max at: %s", hwmon_path);
-                if (access(hwmon_path, W_OK) == 0) {
-                    logging_info("File is writable, attempting to open: %s", hwmon_path);
-                    FILE *fp = fopen(hwmon_path, "w");
-                    if (fp) {
-                        int write_result = fprintf(fp, "%d", temp_max);
-                        if (write_result > 0) {
-                            fclose(fp);
-                            logging_info("Successfully updated hwmon temp1_max to %d m°C (%0.1f°C)", temp_max, temp_max / 1000.0f);
-                            hwmon_updated++;
-                        } else {
-                            logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
-                            fclose(fp);
-                        }
+                FILE *fp = fopen(hwmon_path, "w");
+                if (fp) {
+                    int write_result = fprintf(fp, "%d", temp_max);
+                    if (write_result > 0) {
+                        fclose(fp);
+                        logging_info("Successfully updated hwmon temp1_max to %d m°C (%0.1f°C)", temp_max, temp_max / 1000.0f);
+                        hwmon_updated++;
                     } else {
-                        logging_warning("Failed to open hwmon temp1_max for writing: %s", hwmon_path);
+                        logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
+                        fclose(fp);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_max file not writable: %s", hwmon_path);
+                    logging_warning("Hwmon temp1_max file not writable: %s (errno: %d)", hwmon_path, errno);
                 }
             }
         }
 
-        // Update temp1_crit
+        // Update temp1_crit (direct fopen to avoid TOCTOU race)
         if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
             temp_crit = celsius_to_millidegrees(uci_value);
-            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, hwmon_num) < sizeof(hwmon_path)) {
+            if (snprintf(hwmon_path, sizeof(hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, hwmon_num) < (int)sizeof(hwmon_path)) {
                 logging_info("Attempting to update hwmon temp1_crit at: %s", hwmon_path);
-                if (access(hwmon_path, W_OK) == 0) {
-                    logging_info("File is writable, attempting to open: %s", hwmon_path);
-                    FILE *fp = fopen(hwmon_path, "w");
-                    if (fp) {
-                        int write_result = fprintf(fp, "%d", temp_crit);
-                        if (write_result > 0) {
-                            fclose(fp);
-                            logging_info("Successfully updated hwmon temp1_crit to %d m°C (%0.1f°C)", temp_crit, temp_crit / 1000.0f);
-                            hwmon_updated++;
-                        } else {
-                            logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
-                            fclose(fp);
-                        }
+                FILE *fp = fopen(hwmon_path, "w");
+                if (fp) {
+                    int write_result = fprintf(fp, "%d", temp_crit);
+                    if (write_result > 0) {
+                        fclose(fp);
+                        logging_info("Successfully updated hwmon temp1_crit to %d m°C (%0.1f°C)", temp_crit, temp_crit / 1000.0f);
+                        hwmon_updated++;
                     } else {
-                        logging_warning("Failed to open hwmon temp1_crit for writing: %s", hwmon_path);
+                        logging_error("Failed to write to file: %s (fprintf returned %d)", hwmon_path, write_result);
+                        fclose(fp);
                     }
                 } else {
-                    logging_warning("Hwmon temp1_crit file not writable: %s", hwmon_path);
+                    logging_warning("Hwmon temp1_crit file not writable: %s (errno: %d)", hwmon_path, errno);
                 }
             }
         }

@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include "include/common.h"
 #include "include/logging.h"
 
@@ -89,8 +91,18 @@ static int extract_single_temperature(const char *response, const char *pattern,
     }
     
     // Check if we have a valid temperature value
-    if (*temp_ptr && *temp_ptr != '"' && isdigit(*temp_ptr)) {
-        *temp_value = atoi(temp_ptr);
+    if (*temp_ptr && *temp_ptr != '"' && (isdigit(*temp_ptr) || *temp_ptr == '-')) {
+        char *endptr;
+        errno = 0;
+        long temp_long = strtol(temp_ptr, &endptr, 10);
+
+        /* Check for conversion errors or overflow */
+        if (errno != 0 || endptr == temp_ptr || temp_long < INT_MIN || temp_long > INT_MAX) {
+            logging_debug("extract_single_temperature: strtol failed for pattern '%s'", pattern);
+            return 0;
+        }
+
+        *temp_value = (int)temp_long;
         logging_debug("extract_single_temperature: extracted %d°C for pattern '%s'", *temp_value, pattern);
         return 1;
     }
