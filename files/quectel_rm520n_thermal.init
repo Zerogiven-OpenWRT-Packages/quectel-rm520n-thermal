@@ -58,10 +58,10 @@ start_service() {
     # Start the daemon with procd
     procd_open_instance
     procd_set_param command /usr/bin/quectel_rm520n_temp daemon
-    procd_set_param respawn 3600 5 5  # Respawn threshold 1h, timeout 5s, retry 5 times
-    procd_set_param stdout 1  # Forward stdout to syslog
-    procd_set_param stderr 1  # Forward stderr to syslog
-    procd_set_param term_timeout 10  # Wait 10 seconds for clean shutdown
+    procd_set_param respawn 3600 60 3
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param term_timeout 10
     
     # Set environment variables if debug is enabled
     if [ "$debug" = "1" ]; then
