@@ -18,14 +18,14 @@ include $(INCLUDE_DIR)/package.mk
 
 # --- Kernel package definition ---
 define KernelPackage/$(PKG_NAME)
-  SUBMENU:=Other modules
-  TITLE:=Quectel RM520N Thermal Management Kernel Modules
-  FILES:= \
+  SUBMENU  :=Other modules
+  TITLE    :=Quectel RM520N Thermal Management Kernel Modules
+  FILES    := \
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp.ko \
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp_sensor.ko \
     $(PKG_BUILD_DIR)/kmod/quectel_rm520n_temp_sensor_hwmon.ko
-  AUTOLOAD:=$(call AutoLoad,50,quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon)
-  DEPENDS:=+libuci +libsysfs +libubox +kmod-hwmon-core
+  AUTOLOAD :=$(call AutoLoad,50,quectel_rm520n_temp quectel_rm520n_temp_sensor quectel_rm520n_temp_sensor_hwmon)
+  DEPENDS  :=+libuci +libsysfs +libubox +kmod-hwmon-core
 endef
 
 define KernelPackage/$(PKG_NAME)/description
@@ -35,12 +35,12 @@ endef
 
 # --- Userspace package definition ---
 define Package/$(PKG_NAME)
-  SECTION:=utils
-  CATEGORY:=Utilities
-  TITLE:=Quectel RM520N Thermal Management Tools
-  URL:=$(PKG_URL)
-  MAINTAINER:=$(PKG_MAINTAINER)
-  DEPENDS:=+kmod-quectel-rm520n-thermal +libuci +libsysfs +libubox
+  SECTION    := utils
+  CATEGORY   := Utilities
+  TITLE      := Quectel RM520N Thermal Management Tools
+  URL        := $(PKG_URL)
+  MAINTAINER := $(PKG_MAINTAINER)
+  DEPENDS    := +kmod-quectel-rm520n-thermal +libuci +libsysfs +libubox
 endef
 
 define Package/$(PKG_NAME)/description
@@ -55,12 +55,12 @@ endef
 
 # --- Prometheus Lua collector package definition ---
 define Package/prometheus-node-exporter-lua-$(PKG_NAME)
-	SECTION:=utils
-	CATEGORY:=Utilities
-	TITLE:=Prometheus Lua collector for Quectel RM520N modem
-	URL:=$(PKG_URL)
-	MAINTAINER:=$(PKG_MAINTAINER)
-	DEPENDS:=+$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
+	SECTION    := utils
+	CATEGORY   := Utilities
+	TITLE      := Prometheus Lua collector for Quectel RM520N modem
+	URL        := $(PKG_URL)
+	MAINTAINER := $(PKG_MAINTAINER)
+	DEPENDS    := +$(PKG_NAME) +prometheus-node-exporter-lua +lua-cjson
 endef
 
 define Package/prometheus-node-exporter-lua-$(PKG_NAME)/description
