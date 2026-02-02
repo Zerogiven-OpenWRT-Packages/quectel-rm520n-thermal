@@ -17,7 +17,9 @@
 #include <termios.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/select.h>
 #include "include/serial.h"
+#include "include/system.h"
 
 /* Timeout for AT command responses */
 #define AT_TIMEOUT_SEC 5
@@ -106,26 +108,18 @@ int init_serial_port(const char *port, speed_t baud_rate)
     /* Configure output flags */
     tty.c_oflag = 0;
     
-    /* Configure special characters */
-    tty.c_cc[VMIN] = 1;   /* Minimum characters for read */
-    tty.c_cc[VTIME] = 1;  /* Timeout in deciseconds */
-    
+    /* Configure special characters for non-blocking operation */
+    tty.c_cc[VMIN] = 0;   /* Don't block waiting for characters */
+    tty.c_cc[VTIME] = 1;  /* 100ms timeout */
+
     /* Apply the configuration */
     if (tcsetattr(fd, TCSANOW, &tty) != 0) {
         close(fd);
         return -1;
     }
-    
-    /* Set back to blocking mode for normal operation */
-    flags = fcntl(fd, F_GETFL, 0);
-    if (flags < 0) {
-        close(fd);
-        return -1;
-    }
-    if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0) {
-        close(fd);
-        return -1;
-    }
+
+    /* Keep non-blocking mode for interruptible reads */
+    (void)flags;  /* Already set O_NONBLOCK on open */
 
     return fd;
 }
@@ -135,67 +129,91 @@ int init_serial_port(const char *port, speed_t baud_rate)
  * @param fd File descriptor for serial port
  * @param buf Buffer to store response
  * @param buflen Size of buffer
- * @return Number of bytes read
+ * @return Number of bytes read, -1 on error
+ *
+ * Uses select() for interruptible waits, allowing Ctrl+C to work properly.
+ * Checks shutdown_requested flag between read attempts.
  */
 int read_modem_response(int fd, char *buf, size_t buflen)
 {
     time_t start_time;
     int total = 0;
-    int timeout_reached = 0;
-    
+    fd_set read_fds;
+    struct timeval tv;
+
     /* Validate input parameters */
     if (!validate_serial_params(fd, buf, buflen)) {
         errno = EINVAL;
         return -1;
     }
-    
+
     /* Clear buffer and initialize */
     memset(buf, 0, buflen);
     start_time = time(NULL);
-    
-    /* Read response with timeout */
-    while (!timeout_reached && total < (int)buflen - 1) {
+
+    /* Read response with timeout, checking for shutdown */
+    while (total < (int)buflen - 1) {
+        /* Check if shutdown was requested (Ctrl+C) */
+        if (shutdown_requested) {
+            errno = EINTR;
+            return -1;
+        }
+
+        /* Check overall timeout */
+        if ((time(NULL) - start_time) >= AT_TIMEOUT_SEC) {
+            errno = ETIMEDOUT;
+            break;
+        }
+
+        /* Use select() with 500ms timeout for interruptible wait */
+        FD_ZERO(&read_fds);
+        FD_SET(fd, &read_fds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 500000;  /* 500ms - allows checking shutdown flag */
+
+        int sel_ret = select(fd + 1, &read_fds, NULL, NULL, &tv);
+
+        if (sel_ret < 0) {
+            if (errno == EINTR) {
+                /* Signal interrupted select, check shutdown flag */
+                continue;
+            }
+            /* Real error */
+            return -1;
+        }
+
+        if (sel_ret == 0) {
+            /* Timeout on select, loop to check shutdown and overall timeout */
+            continue;
+        }
+
+        /* Data available, read it */
         int n = read(fd, buf + total, buflen - total - 1);
-        
+
         if (n > 0) {
             total += n;
             buf[total] = '\0';
-            
+
             /* Check for OK response */
             if (strstr(buf, "\nOK") || strstr(buf, "\rOK")) {
                 break;
             }
-            
+
             /* Check for ERROR response */
             if (strstr(buf, "\nERROR") || strstr(buf, "\rERROR")) {
                 break;
             }
         } else if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                /* Non-blocking read, check timeout */
-                if ((time(NULL) - start_time) >= AT_TIMEOUT_SEC) {
-                    timeout_reached = 1;
-                    break;
-                }
-                usleep(10000); /* Wait 10ms */
-            } else {
-                /* Real error occurred */
-                return -1;
+                /* No data available yet, continue */
+                continue;
             }
-        } else {
-            /* n == 0, check timeout */
-            if ((time(NULL) - start_time) >= AT_TIMEOUT_SEC) {
-                timeout_reached = 1;
-                break;
-            }
-            usleep(10000); /* Wait 10ms */
+            /* Real error */
+            return -1;
         }
+        /* n == 0 means no data, continue loop */
     }
-    
-    if (timeout_reached) {
-        errno = ETIMEDOUT;
-    }
-    
+
     return total;
 }
 
