@@ -94,6 +94,7 @@
 #define SERIAL_MAX_RECONNECT_ATTEMPTS  5    /* Maximum retry attempts */
 #define SERIAL_INITIAL_RECONNECT_DELAY 10   /* Initial delay in seconds */
 #define SERIAL_MAX_RECONNECT_DELAY     60   /* Maximum delay in seconds */
+#define SERIAL_MAX_FAILED_CYCLES       3    /* Exit after N reconnect cycles without success */
 
 /* Daemon timing intervals */
 #define STATS_LOG_INTERVAL             100  /* Log stats every N iterations */

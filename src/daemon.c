@@ -196,6 +196,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
     // Main daemon loop
     int serial_reconnect_attempts = 0;
     int reconnect_delay = SERIAL_INITIAL_RECONNECT_DELAY;
+    int failed_cycles = 0;  // Track complete failed reconnect cycles
     g_serial_fd = -1;  // Use global for emergency cleanup access
 
     // Find hwmon path once (cached for performance)
@@ -293,12 +294,27 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     }
                     continue;
                 }
-                logging_error("Failed to initialize serial port after %d attempts, continuing with error reporting",
-                             SERIAL_MAX_RECONNECT_ATTEMPTS);
+                // Exhausted reconnect attempts for this cycle
+                failed_cycles++;
+                logging_error("Failed to initialize serial port after %d attempts (cycle %d/%d)",
+                             SERIAL_MAX_RECONNECT_ATTEMPTS, failed_cycles, SERIAL_MAX_FAILED_CYCLES);
+
+                if (failed_cycles >= SERIAL_MAX_FAILED_CYCLES) {
+                    logging_error("Exiting after %d failed reconnect cycles. Check serial port configuration.",
+                                 SERIAL_MAX_FAILED_CYCLES);
+                    release_daemon_lock();
+                    return 1;
+                }
+
+                // Reset for next cycle
+                serial_reconnect_attempts = 0;
+                reconnect_delay = SERIAL_INITIAL_RECONNECT_DELAY;
+                continue;
             } else {
                 logging_info("Serial port initialized successfully");
                 serial_reconnect_attempts = 0;
                 reconnect_delay = SERIAL_INITIAL_RECONNECT_DELAY;
+                // Don't reset failed_cycles here - only reset on successful read
             }
         }
         
@@ -337,8 +353,9 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                     logging_debug("Temperature: %d°C (modem: %d°C, AP: %d°C, PA: %d°C)", 
                                best_temp, modem_temp, ap_temp, pa_temp);
                     
-                    // Increment successful read counter
+                    // Increment successful read counter and reset failed cycles
                     g_stats.successful_reads++;
+                    failed_cycles = 0;  // Reset on successful read
 
                     // Write to main sysfs interface (primary interface for CLI tool)
                     // Avoid TOCTOU race by directly attempting fopen without access() check
@@ -475,10 +492,19 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
 
                 // Handle serial communication errors
                 if (++serial_reconnect_attempts > 3) {
-                    logging_warning("Multiple AT command failures, reopening serial port");
+                    failed_cycles++;
+                    logging_warning("Multiple AT command failures, reopening serial port (cycle %d/%d)",
+                                   failed_cycles, SERIAL_MAX_FAILED_CYCLES);
                     close(g_serial_fd);
                     g_serial_fd = -1;
                     serial_reconnect_attempts = 0;
+
+                    if (failed_cycles >= SERIAL_MAX_FAILED_CYCLES) {
+                        logging_error("Exiting after %d failed communication cycles. Check serial port configuration.",
+                                     SERIAL_MAX_FAILED_CYCLES);
+                        release_daemon_lock();
+                        return 1;
+                    }
                 }
             }
         }
