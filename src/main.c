@@ -267,27 +267,53 @@ int main(int argc, char *argv[])
         if (watch_mode) {
             // Watch mode: continuously monitor temperature
             char temp_str[64];
-            time_t last_update = 0;
-            
+            int consecutive_failures = 0;
+            const int max_failures = 3;
+
             if (!json_output) {
                 printf("Monitoring temperature at %d seconds interval (press Ctrl+C to exit)...\n", config.interval);
             }
-            
+
             while (!shutdown_requested) {
                 int result = cli_mode(temp_str, sizeof(temp_str));
-                
+
+                // Track consecutive serial failures (for instant retry)
+                if (result == CLI_ERR_SERIAL) {
+                    consecutive_failures++;
+                    if (consecutive_failures >= max_failures) {
+                        if (!json_output) {
+                            fprintf(stderr, "\nError: %d consecutive serial failures. "
+                                    "Check serial port configuration.\n", max_failures);
+                        } else {
+                            printf("{\n");
+                            printf("  \"error\": \"serial_failure\",\n");
+                            printf("  \"message\": \"%d consecutive serial failures\",\n", max_failures);
+                            printf("  \"timestamp\": \"%ld\"\n", (long)time(NULL));
+                            printf("}\n");
+                        }
+                        return 1;
+                    }
+                    // Instant retry for serial failures - no sleep
+                    continue;
+                } else if (result != CLI_SUCCESS) {
+                    // Other errors - reset counter but wait before retry
+                    consecutive_failures = 0;
+                } else {
+                    consecutive_failures = 0;  // Reset on success
+                }
+
                 // Convert temperature format if needed
-                if (result == 0 && celsius_output && strcmp(temp_str, "N/A") != 0) {
+                if (result == CLI_SUCCESS && celsius_output && strcmp(temp_str, "N/A") != 0) {
                     int temp_mdeg = atoi(temp_str);
                     int temp_celsius = temp_mdeg / 1000;
                     snprintf(temp_str, sizeof(temp_str), "%d", temp_celsius);
                 }
-                
+
                 // Output the temperature value
                 if (json_output) {
                     printf("{\n");
                     printf("  \"temperature\": \"%s\",\n", temp_str);
-                    printf("  \"status\": \"%s\",\n", result == 0 ? "ok" : "error");
+                    printf("  \"status\": \"%s\",\n", result == CLI_SUCCESS ? "ok" : "error");
                     printf("  \"timestamp\": \"%ld\"\n", (long)time(NULL));
                     printf("}\n");
                 } else {
@@ -300,40 +326,40 @@ int main(int argc, char *argv[])
                     printf("[%s] Temperature: %s", time_str, temp_str);
                     fflush(stdout);
                 }
-                
+
                 // Sleep for configured interval (following CLI guidelines for watch mode)
                 sleep(config.interval);
             }
-            
+
             if (!json_output) {
                 printf("\n"); // New line after Ctrl+C
             }
-            
+
             return 0;
         } else {
             // Single read mode
             char temp_str[64];
             int result = cli_mode(temp_str, sizeof(temp_str));
-            
+
             // Convert temperature format if needed
-            if (result == 0 && celsius_output && strcmp(temp_str, "N/A") != 0) {
+            if (result == CLI_SUCCESS && celsius_output && strcmp(temp_str, "N/A") != 0) {
                 int temp_mdeg = atoi(temp_str);
                 int temp_celsius = temp_mdeg / 1000;
                 snprintf(temp_str, sizeof(temp_str), "%d", temp_celsius);
             }
-            
+
             // Output the temperature value
             if (json_output) {
                 printf("{\n");
                 printf("  \"temperature\": \"%s\",\n", temp_str);
-                printf("  \"status\": \"%s\",\n", result == 0 ? "ok" : "error");
+                printf("  \"status\": \"%s\",\n", result == CLI_SUCCESS ? "ok" : "error");
                 printf("  \"timestamp\": \"%ld\"\n", (long)time(NULL));
                 printf("}\n");
             } else {
                 printf("%s\n", temp_str);
             }
-            
-            return result;
+
+            return (result == CLI_SUCCESS) ? 0 : 1;
         }
     } else if (strcmp(command, "config") == 0) {
         return uci_config_mode();

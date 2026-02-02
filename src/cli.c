@@ -21,6 +21,7 @@
 #include "include/serial.h"
 #include "include/temperature.h"
 #include "include/system.h"
+#include "include/cli.h"
 
 /* External variables from main.c */
 extern config_t config;
@@ -137,7 +138,7 @@ static int find_cached_hwmon_path(char *path_buf, size_t buf_size)
  */
 int cli_mode(char *temp_str, size_t temp_size)
 {
-    const char *status = "ok";
+    int error_type = CLI_SUCCESS;
     int fd = -1;
     
     // Reload UCI configuration to get current settings
@@ -166,7 +167,7 @@ int cli_mode(char *temp_str, size_t temp_size)
                     temp_str[strcspn(temp_str, "\n")] = '\0';
 
                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
-                        status = "ok";
+                        error_type = CLI_SUCCESS;
                         logging_debug("Temperature read from main sysfs interface: '%s'", temp_str);
                         logging_debug("Using temperature from daemon");
                         fclose(temp_fp);
@@ -193,7 +194,7 @@ int cli_mode(char *temp_str, size_t temp_size)
                     temp_str[strcspn(temp_str, "\n")] = '\0';
 
                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
-                        status = "ok";
+                        error_type = CLI_SUCCESS;
                         logging_debug("Temperature read from hwmon: '%s'", temp_str);
                         logging_debug("Using temperature from daemon");
                         fclose(temp_fp);
@@ -214,7 +215,7 @@ int cli_mode(char *temp_str, size_t temp_size)
     // Read temperature via AT command
     fd = init_serial_port(config.serial_port, config.baud_rate);
     if (fd < 0) {
-        status = "Error: Serial port not available";
+        error_type = CLI_ERR_SERIAL;
         logging_debug("Serial port open failed: %s", config.serial_port);
         goto output_result;
     }
@@ -238,7 +239,7 @@ int cli_mode(char *temp_str, size_t temp_size)
             if (best_temp < (TEMP_ABSOLUTE_MIN / 1000) || best_temp > (TEMP_ABSOLUTE_MAX / 1000)) {
                 logging_warning("Temperature %d°C out of valid range (%d to %d°C)",
                                best_temp, TEMP_ABSOLUTE_MIN / 1000, TEMP_ABSOLUTE_MAX / 1000);
-                status = "Error: Temperature out of range";
+                error_type = CLI_ERR_OTHER;
                 SAFE_STRNCPY(temp_str, "N/A", temp_size);
                 close_serial_port(fd);
                 goto output_result;
@@ -253,12 +254,12 @@ int cli_mode(char *temp_str, size_t temp_size)
             logging_debug("Temperature parsed successfully: %s°C (modem: %d°C, AP: %d°C, PA: %d°C)",
                          temp_str, modem_temp, ap_temp, pa_temp);
         } else {
-            status = "Error: Invalid response format";
+            error_type = CLI_ERR_OTHER;
             SAFE_STRNCPY(temp_str, "N/A", temp_size);
             logging_debug("Temperature parsing failed: invalid response format");
         }
     } else {
-        status = "Error: Communication failed";
+        error_type = CLI_ERR_SERIAL;
         logging_debug("AT command communication failed: no response received");
     }
 
@@ -266,10 +267,5 @@ int cli_mode(char *temp_str, size_t temp_size)
     logging_debug("Serial port closed");
 
 output_result:
-    // Note: json_output is handled in main.c, this function focuses on CLI logic
-    if (strcmp(status, "ok") == 0) {
-        return 0;  // Success
-    } else {
-        return 1;  // Error
-        }
-    }
+    return error_type;
+}
