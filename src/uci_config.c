@@ -31,6 +31,7 @@
 #include <uci.h>
 #include "include/logging.h"
 #include "include/common.h"
+#include "include/system.h"
 
 /* ============================================================================
  * CONSTANTS & CONFIGURATION
@@ -47,36 +48,6 @@
 #define UCI_TEMP_MAX "temp_max"
 #define UCI_TEMP_CRIT "temp_crit"
 #define UCI_TEMP_DEFAULT "temp_default"
-
-/* ============================================================================
- * HELPER FUNCTIONS
- * ============================================================================ */
-
-/**
- * Extract hwmon device number from directory name
- * 
- * @param dir_name Directory name (e.g., "hwmon3")
- * @return Device number on success, -1 on error
- */
-static int extract_hwmon_number(const char *dir_name)
-{
-    char *endptr;
-    long num;
-
-    if (!dir_name) return -1;
-
-    // Extract numeric part from "hwmon3" -> "3"
-    const char *num_start = strpbrk(dir_name, "0123456789");
-    if (num_start) {
-        errno = 0;
-        num = strtol(num_start, &endptr, 10);
-        // Validate: no error, consumed digits, and within valid range
-        if (errno == 0 && endptr != num_start && num >= 0 && num <= HWMON_NUM_MAX) {
-            return (int)num;
-        }
-    }
-    return -1;
-}
 
 /* ============================================================================
  * UCI CONFIGURATION FUNCTIONS
@@ -173,90 +144,6 @@ static int celsius_to_millidegrees(const char *celsius_str)
 /* ============================================================================
  * SYSFS INTERFACE FUNCTIONS
  * ============================================================================ */
-
-/**
- * Find the Quectel hwmon device (single-pass optimized)
- *
- * Scans hwmon devices once, preferring exact name match over partial match.
- *
- * @return hwmon device number on success, -1 on error
- */
-static int find_quectel_hwmon_device(void)
-{
-    DIR *hwmon_dir;
-    struct dirent *entry;
-    int hwmon_num = -1;
-    int fallback_num = -1;  /* Partial match fallback */
-
-    hwmon_dir = opendir(HWMON_BASE);
-    if (!hwmon_dir) {
-        return -1;
-    }
-
-    while ((entry = readdir(hwmon_dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        /* Build paths for this device */
-        char name_path[256];
-        char verify_path[256];
-        if (snprintf(name_path, sizeof(name_path), "%s/%s/name", HWMON_BASE, entry->d_name) >= (int)sizeof(name_path))
-            continue;
-        if (snprintf(verify_path, sizeof(verify_path), "%s/%s/temp1_input", HWMON_BASE, entry->d_name) >= (int)sizeof(verify_path))
-            continue;
-
-        /* Read device name */
-        FILE *name_fp = fopen(name_path, "r");
-        if (!name_fp)
-            continue;
-
-        char dev_name[64];
-        if (fgets(dev_name, sizeof(dev_name), name_fp) == NULL) {
-            fclose(name_fp);
-            continue;
-        }
-        fclose(name_fp);
-        dev_name[strcspn(dev_name, "\n")] = '\0';
-
-        logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
-
-        /* Check for exact match first (highest priority) */
-        if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
-            /* Verify device has temp1_input */
-            if (access(verify_path, R_OK) == 0) {
-                int num = extract_hwmon_number(entry->d_name);
-                if (num >= 0) {
-                    logging_info("Selected Quectel hwmon device (exact match): hwmon%d", num);
-                    hwmon_num = num;
-                    break;  /* Exact match found, stop searching */
-                }
-            }
-        }
-        /* Check for partial match (fallback) */
-        else if (fallback_num < 0 &&
-                 (strstr(dev_name, "quectel") != NULL || strstr(dev_name, "rm520n") != NULL)) {
-            if (access(verify_path, R_OK) == 0) {
-                int num = extract_hwmon_number(entry->d_name);
-                if (num >= 0) {
-                    logging_debug("Found Quectel-like device (partial match): hwmon%d", num);
-                    fallback_num = num;
-                    /* Continue searching for exact match */
-                }
-            }
-        }
-    }
-
-    closedir(hwmon_dir);
-
-    /* Use fallback if no exact match found */
-    if (hwmon_num < 0 && fallback_num >= 0) {
-        logging_info("Using Quectel-like device (partial match): hwmon%d", fallback_num);
-        hwmon_num = fallback_num;
-    }
-
-    logging_info("find_quectel_hwmon_device() returning: %d", hwmon_num);
-    return hwmon_num;
-}
 
 /**
  * Write value to sysfs file
@@ -479,7 +366,7 @@ int uci_config_mode(void)
         closedir(debug_hwmon_dir);
     }
     
-            int hwmon_num = find_quectel_hwmon_device();
+            int hwmon_num = find_quectel_hwmon_device(1);  /* Use caching */
         logging_debug("find_quectel_hwmon_device() returned: %d", hwmon_num);
         
         // Check for manual override via environment variable
@@ -734,54 +621,28 @@ int uci_config_mode(void)
         logging_info("================================================");
     } else {
         logging_info("Quectel hwmon device not found");
-        
-        // Try alternative approach: look for any hwmon device with Quectel attributes
+
+        // Try alternative approach: invalidate cache and rescan
         logging_info("Trying alternative hwmon device detection...");
-        DIR *alt_hwmon_dir = opendir(HWMON_BASE);
-        if (alt_hwmon_dir) {
-            struct dirent *alt_entry;
-            while ((alt_entry = readdir(alt_hwmon_dir)) != NULL) {
-                if (strcmp(alt_entry->d_name, ".") == 0 || strcmp(alt_entry->d_name, "..") == 0)
-                    continue;
-                    
-                char alt_name_path[256];
-                char alt_dev_name[64];
-                if (snprintf(alt_name_path, sizeof(alt_name_path), "%s/%s/name", HWMON_BASE, alt_entry->d_name) < sizeof(alt_name_path)) {
-                    FILE *alt_name_fp = fopen(alt_name_path, "r");
-                    if (alt_name_fp) {
-                        if (fgets(alt_dev_name, sizeof(alt_dev_name), alt_name_fp) != NULL) {
-                            alt_dev_name[strcspn(alt_dev_name, "\n")] = '\0';
-                            if (strcmp(alt_dev_name, "quectel_rm520n_thermal") == 0) {
-                                int alt_hwmon_num = extract_hwmon_number(alt_entry->d_name);
-                                if (alt_hwmon_num < 0) {
-                                    logging_warning("Failed to extract hwmon number from '%s'", alt_entry->d_name);
-                                    fclose(alt_name_fp);
-                                    continue;
-                                }
-                                logging_info("Alternative detection found: hwmon%d", alt_hwmon_num);
-                                
-                                // Try to update this alternative device
-                                char alt_hwmon_path[256];
-                                if (snprintf(alt_hwmon_path, sizeof(alt_hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, alt_hwmon_num) < sizeof(alt_hwmon_path)) {
-                                    // Try to update temp1_crit (avoid TOCTOU race with access() check)
-                                    if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
-                                        temp_crit = celsius_to_millidegrees(uci_value);
-                                        FILE *alt_fp = fopen(alt_hwmon_path, "w");
-                                        if (alt_fp) {
-                                            fprintf(alt_fp, "%d", temp_crit);
-                                            fclose(alt_fp);
-                                            logging_info("Successfully updated alternative hwmon%d temp1_crit to %d m°C", alt_hwmon_num, temp_crit);
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        fclose(alt_name_fp);
+        invalidate_hwmon_cache();
+        int alt_hwmon_num = find_quectel_hwmon_device(0);  /* Force rescan */
+
+        if (alt_hwmon_num >= 0) {
+            logging_info("Alternative detection found: hwmon%d", alt_hwmon_num);
+
+            // Try to update temp1_crit on this alternative device
+            char alt_hwmon_path[256];
+            if (snprintf(alt_hwmon_path, sizeof(alt_hwmon_path), "%s/hwmon%d/temp1_crit", HWMON_BASE, alt_hwmon_num) < sizeof(alt_hwmon_path)) {
+                if (read_uci_option(UCI_TEMP_CRIT, uci_value, sizeof(uci_value)) == 0) {
+                    temp_crit = celsius_to_millidegrees(uci_value);
+                    FILE *alt_fp = fopen(alt_hwmon_path, "w");
+                    if (alt_fp) {
+                        fprintf(alt_fp, "%d", temp_crit);
+                        fclose(alt_fp);
+                        logging_info("Successfully updated alternative hwmon%d temp1_crit to %d m°C", alt_hwmon_num, temp_crit);
                     }
                 }
             }
-            closedir(alt_hwmon_dir);
         }
     }
     

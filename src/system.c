@@ -161,24 +161,71 @@ void signal_handler(int sig)
  * HWMON DISCOVERY FUNCTIONS
  * ============================================================================ */
 
+/* Cached hwmon device state */
+static int g_hwmon_device_num = -1;
+static int g_hwmon_cache_valid = 0;
+
 /**
- * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
- * @path_buf: Buffer to store the path
- * @buf_size: Size of the buffer
+ * Extract hwmon device number from directory name (e.g., "hwmon3" -> 3)
+ */
+static int extract_hwmon_number(const char *name)
+{
+    if (!name || strncmp(name, "hwmon", 5) != 0) {
+        return -1;
+    }
+    char *endptr;
+    long num = strtol(name + 5, &endptr, 10);
+    if (*endptr != '\0' || num < 0 || num > 999) {
+        return -1;
+    }
+    return (int)num;
+}
+
+/**
+ * invalidate_hwmon_cache - Clear the cached hwmon device information
+ */
+void invalidate_hwmon_cache(void)
+{
+    g_hwmon_device_num = -1;
+    g_hwmon_cache_valid = 0;
+    logging_debug("Hwmon cache invalidated");
+}
+
+/**
+ * find_quectel_hwmon_device - Find the hwmon device number for quectel_rm520n
  *
  * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
- * by scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ * by scanning /sys/class/hwmon devices. Results are cached for performance.
  *
- * @return 0 on success, -1 on failure
+ * Device name matching priority:
+ * 1. "quectel_rm520n_thermal" (exact match, highest priority)
+ * 2. "quectel_rm520n_hwmon" (alternate name)
+ * 3. Any name containing "quectel_rm520n" (fallback)
+ *
+ * @param use_cache: If true, return cached result if available. If false, force rescan.
+ * @return Device number (>= 0) on success, -1 on failure
  */
-int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
+int find_quectel_hwmon_device(int use_cache)
 {
     DIR *hwmon_dir;
     struct dirent *entry;
-    int found = 0;
+    int exact_match = -1;
+    int fallback_match = -1;
 
-    if (!path_buf || buf_size == 0) {
-        return -1;
+    /* Return cached result if valid and requested */
+    if (use_cache && g_hwmon_cache_valid) {
+        if (g_hwmon_device_num >= 0) {
+            /* Verify device still exists */
+            char verify_path[PATH_MAX_LEN];
+            snprintf(verify_path, sizeof(verify_path), "/sys/class/hwmon/hwmon%d/temp1_input", g_hwmon_device_num);
+            if (access(verify_path, R_OK) == 0) {
+                logging_debug("Using cached hwmon device: hwmon%d", g_hwmon_device_num);
+                return g_hwmon_device_num;
+            }
+            /* Cache invalid, need to rescan */
+            logging_debug("Cached hwmon%d no longer valid, rescanning", g_hwmon_device_num);
+        }
+        g_hwmon_cache_valid = 0;
     }
 
     hwmon_dir = opendir("/sys/class/hwmon");
@@ -188,33 +235,97 @@ int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
 
     while ((entry = readdir(hwmon_dir)) != NULL) {
         char name_path[PATH_MAX_LEN];
+        char verify_path[PATH_MAX_LEN];
         char dev_name[DEVICE_NAME_LEN];
         FILE *name_fp;
 
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
-        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= (int)sizeof(name_path)) {
+        /* Build paths */
+        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= (int)sizeof(name_path))
+            continue;
+        if (snprintf(verify_path, sizeof(verify_path), "/sys/class/hwmon/%s/temp1_input", entry->d_name) >= (int)sizeof(verify_path))
+            continue;
+
+        /* Read device name */
+        name_fp = fopen(name_path, "r");
+        if (!name_fp)
+            continue;
+
+        if (fgets(dev_name, sizeof(dev_name), name_fp) == NULL) {
+            fclose(name_fp);
             continue;
         }
+        fclose(name_fp);
+        dev_name[strcspn(dev_name, "\n")] = '\0';
 
-        name_fp = fopen(name_path, "r");
-        if (name_fp) {
-            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
-                dev_name[strcspn(dev_name, "\n")] = '\0';
-                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0) {
-                    fclose(name_fp);
-                    if (snprintf(path_buf, buf_size, "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)buf_size) {
-                        found = 1;
-                        logging_debug("Found quectel hwmon device: %s", path_buf);
-                        break;
-                    }
-                }
-            }
-            fclose(name_fp);
+        logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
+
+        /* Verify device has temp1_input */
+        if (access(verify_path, R_OK) != 0)
+            continue;
+
+        int num = extract_hwmon_number(entry->d_name);
+        if (num < 0)
+            continue;
+
+        /* Check for exact match (highest priority) */
+        if (strcmp(dev_name, "quectel_rm520n_thermal") == 0 ||
+            strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
+            exact_match = num;
+            logging_debug("Found exact match: hwmon%d (%s)", num, dev_name);
+            break;  /* Exact match found, stop searching */
+        }
+
+        /* Check for partial match (fallback) */
+        if (strstr(dev_name, "quectel_rm520n") != NULL && fallback_match < 0) {
+            fallback_match = num;
+            logging_debug("Found fallback match: hwmon%d (%s)", num, dev_name);
         }
     }
     closedir(hwmon_dir);
 
-    return found ? 0 : -1;
+    /* Use exact match if found, otherwise use fallback */
+    int result = (exact_match >= 0) ? exact_match : fallback_match;
+
+    /* Update cache */
+    g_hwmon_device_num = result;
+    g_hwmon_cache_valid = 1;
+
+    if (result >= 0) {
+        logging_debug("Selected hwmon device: hwmon%d", result);
+    }
+
+    return result;
+}
+
+/**
+ * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
+ * @path_buf: Buffer to store the path
+ * @buf_size: Size of the buffer
+ *
+ * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
+ * by scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ * Uses caching for performance.
+ *
+ * @return 0 on success, -1 on failure
+ */
+int find_quectel_hwmon_path(char *path_buf, size_t buf_size)
+{
+    if (!path_buf || buf_size == 0) {
+        return -1;
+    }
+
+    int hwmon_num = find_quectel_hwmon_device(1);  /* Use caching */
+    if (hwmon_num < 0) {
+        return -1;
+    }
+
+    if (snprintf(path_buf, buf_size, "/sys/class/hwmon/hwmon%d/temp1_input", hwmon_num) >= (int)buf_size) {
+        return -1;
+    }
+
+    logging_debug("Hwmon path: %s", path_buf);
+    return 0;
 }

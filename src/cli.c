@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <dirent.h>
 #include "include/logging.h"
 #include "include/config.h"
 #include "include/common.h"
@@ -32,86 +31,6 @@ extern config_t config;
 
 #define MAX_RESPONSE 1024
 #define AT_COMMAND "AT+QTEMP\r"
-
-/* ============================================================================
- * HELPER FUNCTIONS
- * ============================================================================ */
-
-/**
- * find_cached_hwmon_path - Find and cache hwmon device path
- * @path_buf: Buffer to store the path
- * @buf_size: Size of the buffer
- *
- * Discovers the hwmon device path for quectel_rm520n and caches the result
- * for subsequent calls to avoid repeated directory scans.
- *
- * Note: This function uses static caching and is not thread-safe.
- * This is acceptable for the single-threaded CLI tool.
- *
- * @return 0 on success, -1 on failure
- */
-static int find_cached_hwmon_path(char *path_buf, size_t buf_size)
-{
-    static char cached_path[PATH_MAX_LEN] = {0};
-    static int cache_valid = 0;
-
-    // Return cached path if available
-    if (cache_valid && cached_path[0] != '\0') {
-        if (access(cached_path, R_OK) == 0) {
-            strncpy(path_buf, cached_path, buf_size - 1);
-            path_buf[buf_size - 1] = '\0';
-            logging_debug("Using cached hwmon path: %s", cached_path);
-            return 0;
-        } else {
-            // Cached path no longer valid, invalidate cache
-            logging_debug("Cached hwmon path no longer accessible, rescanning");
-            cache_valid = 0;
-            cached_path[0] = '\0';
-        }
-    }
-
-    // Scan for hwmon device
-    DIR *hwmon_dir = opendir("/sys/class/hwmon");
-    if (!hwmon_dir) {
-        return -1;
-    }
-
-    struct dirent *entry;
-    while ((entry = readdir(hwmon_dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        char name_path[PATH_MAX_LEN];
-        if (snprintf(name_path, sizeof(name_path), "/sys/class/hwmon/%s/name", entry->d_name) >= sizeof(name_path)) {
-            continue;
-        }
-
-        FILE *name_fp = fopen(name_path, "r");
-        if (name_fp) {
-            char dev_name[DEVICE_NAME_LEN];
-            if (fgets(dev_name, sizeof(dev_name), name_fp) != NULL) {
-                dev_name[strcspn(dev_name, "\n")] = '\0';
-                if (strcmp(dev_name, "quectel_rm520n_thermal") == 0 || strcmp(dev_name, "quectel_rm520n_hwmon") == 0) {
-                    fclose(name_fp);
-
-                    // Build temp1_input path
-                    if (snprintf(cached_path, sizeof(cached_path), "/sys/class/hwmon/%s/temp1_input", entry->d_name) < (int)sizeof(cached_path)) {
-                        cache_valid = 1;
-                        strncpy(path_buf, cached_path, buf_size - 1);
-                        path_buf[buf_size - 1] = '\0';
-                        logging_debug("Found and cached hwmon path: %s", cached_path);
-                        closedir(hwmon_dir);
-                        return 0;
-                    }
-                }
-            }
-            fclose(name_fp);
-        }
-    }
-    closedir(hwmon_dir);
-
-    return -1;
-}
 
 /* ============================================================================
  * CLI MODE IMPLEMENTATION
@@ -183,9 +102,9 @@ int cli_mode(char *temp_str, size_t temp_size)
         // Fall back to hwmon interface if main interface not available
         logging_debug("Main interface not available, trying hwmon...");
 
-        // Use cached hwmon discovery for better performance
+        // Use shared hwmon discovery with caching for better performance
         char hwmon_path[PATH_MAX_LEN];
-        if (find_cached_hwmon_path(hwmon_path, sizeof(hwmon_path)) == 0) {
+        if (find_quectel_hwmon_path(hwmon_path, sizeof(hwmon_path)) == 0) {
             logging_debug("Found hwmon path: %s", hwmon_path);
 
             FILE *temp_fp = fopen(hwmon_path, "r");

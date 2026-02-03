@@ -79,15 +79,39 @@ extern volatile sig_atomic_t shutdown_requested;
  * ============================================================================ */
 
 /**
+ * find_quectel_hwmon_device - Find the hwmon device number for quectel_rm520n
+ *
+ * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
+ * by scanning /sys/class/hwmon devices. Results are cached for performance.
+ *
+ * Device name matching priority:
+ * 1. "quectel_rm520n_thermal" (exact match, highest priority)
+ * 2. "quectel_rm520n_hwmon" (alternate name)
+ * 3. Any name containing "quectel_rm520n" (fallback)
+ *
+ * @param use_cache: If true, return cached result if available. If false, force rescan.
+ * @return Device number (>= 0) on success, -1 on failure
+ */
+int find_quectel_hwmon_device(int use_cache);
+
+/**
  * find_quectel_hwmon_path - Find the hwmon path for quectel_rm520n device
  * @path_buf: Buffer to store the path
  * @buf_size: Size of the buffer
  *
  * Dynamically discovers the hwmon device number for quectel_rm520n_thermal
  * by scanning /sys/class/hwmon devices. Returns the full path to temp1_input.
+ * Uses caching for performance.
  *
  * @return 0 on success, -1 on failure
  */
 int find_quectel_hwmon_path(char *path_buf, size_t buf_size);
+
+/**
+ * invalidate_hwmon_cache - Clear the cached hwmon device information
+ *
+ * Call this when the hwmon device may have changed (e.g., module reload).
+ */
+void invalidate_hwmon_cache(void);
 
 #endif /* SYSTEM_H */
