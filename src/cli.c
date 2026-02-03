@@ -83,7 +83,7 @@ int cli_mode(char *temp_str, size_t temp_size)
             FILE *temp_fp = fopen("/sys/kernel/quectel_rm520n_thermal/temp", "r");
             if (temp_fp) {
                 if (fgets(temp_str, temp_size, temp_fp) != NULL) {
-                    temp_str[strcspn(temp_str, "\n")] = '\0';
+                    STRIP_NEWLINE(temp_str);
 
                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
                         error_type = CLI_SUCCESS;
@@ -110,7 +110,7 @@ int cli_mode(char *temp_str, size_t temp_size)
             FILE *temp_fp = fopen(hwmon_path, "r");
             if (temp_fp) {
                 if (fgets(temp_str, temp_size, temp_fp) != NULL) {
-                    temp_str[strcspn(temp_str, "\n")] = '\0';
+                    STRIP_NEWLINE(temp_str);
 
                     if (strcmp(temp_str, "N/A") != 0 && strcmp(temp_str, "0") != 0) {
                         error_type = CLI_SUCCESS;
@@ -146,32 +146,20 @@ int cli_mode(char *temp_str, size_t temp_size)
     if (send_at_command(fd, AT_COMMAND, response, sizeof(response)) > 0) {
         logging_debug("AT command sent successfully, response length: %zu", strlen(response));
         int modem_temp, ap_temp, pa_temp;
-                        if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp,
-                                       config.temp_modem_prefix, config.temp_ap_prefix, config.temp_pa_prefix) == 1) {
-            // extract_temp_values returns 1 on success
-            // Use the highest temperature value (same logic as daemon)
-            int best_temp = modem_temp;
-            if (ap_temp > best_temp) best_temp = ap_temp;
-            if (pa_temp > best_temp) best_temp = pa_temp;
-
-            // Validate temperature range before conversion to prevent overflow
-            if (best_temp < (TEMP_ABSOLUTE_MIN / 1000) || best_temp > (TEMP_ABSOLUTE_MAX / 1000)) {
-                logging_warning("Temperature %d°C out of valid range (%d to %d°C)",
-                               best_temp, TEMP_ABSOLUTE_MIN / 1000, TEMP_ABSOLUTE_MAX / 1000);
+        if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp,
+                               config.temp_modem_prefix, config.temp_ap_prefix, config.temp_pa_prefix) == 1) {
+            int best_temp_mdeg;
+            if (select_best_temperature(modem_temp, ap_temp, pa_temp, &best_temp_mdeg)) {
+                if (snprintf(temp_str, temp_size, "%d", best_temp_mdeg) >= (int)temp_size) {
+                    logging_warning("Temperature string truncated, using fallback: N/A");
+                    SAFE_STRNCPY(temp_str, "N/A", temp_size);
+                }
+            } else {
                 error_type = CLI_ERR_OTHER;
                 SAFE_STRNCPY(temp_str, "N/A", temp_size);
                 close_serial_port(fd);
                 goto output_result;
             }
-
-            // Convert to millidegrees (same format as daemon output)
-            int best_temp_mdeg = best_temp * 1000;
-            if (snprintf(temp_str, temp_size, "%d", best_temp_mdeg) >= (int)temp_size) {
-                logging_warning("Temperature string truncated, using fallback: N/A");
-                SAFE_STRNCPY(temp_str, "N/A", temp_size);
-            }
-            logging_debug("Temperature parsed successfully: %s°C (modem: %d°C, AP: %d°C, PA: %d°C)",
-                         temp_str, modem_temp, ap_temp, pa_temp);
         } else {
             error_type = CLI_ERR_OTHER;
             SAFE_STRNCPY(temp_str, "N/A", temp_size);

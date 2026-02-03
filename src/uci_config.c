@@ -356,7 +356,7 @@ int uci_config_mode(void)
                 FILE *debug_name_fp = fopen(debug_name_path, "r");
                 if (debug_name_fp) {
                     if (fgets(debug_dev_name, sizeof(debug_dev_name), debug_name_fp) != NULL) {
-                        debug_dev_name[strcspn(debug_dev_name, "\n")] = '\0';
+                        STRIP_NEWLINE(debug_dev_name);
                         logging_debug("  %s -> %s", debug_entry->d_name, debug_dev_name);
                     }
                     fclose(debug_name_fp);

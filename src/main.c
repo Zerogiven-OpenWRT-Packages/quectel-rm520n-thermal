@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
                 if (temp_fp) {
                     char temp[SMALL_BUFFER_LEN];
                     if (fgets(temp, sizeof(temp), temp_fp) != NULL) {
-                        temp[strcspn(temp, "\n")] = '\0';
+                        STRIP_NEWLINE(temp);
                         int temp_mdeg = atoi(temp);
                         printf("Temperature: %d m°C (%.1f°C)\n", temp_mdeg, temp_mdeg / 1000.0);
                     }
@@ -394,7 +394,7 @@ int main(int argc, char *argv[])
                     char stats_line[256];
                     printf("\nKernel module statistics:\n");
                     while (fgets(stats_line, sizeof(stats_line), stats_fp) != NULL) {
-                        stats_line[strcspn(stats_line, "\n")] = '\0';
+                        STRIP_NEWLINE(stats_line);
                         printf("  %s\n", stats_line);
                     }
                     fclose(stats_fp);

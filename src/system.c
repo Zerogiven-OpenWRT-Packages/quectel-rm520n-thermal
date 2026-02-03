@@ -258,7 +258,7 @@ int find_quectel_hwmon_device(int use_cache)
             continue;
         }
         fclose(name_fp);
-        dev_name[strcspn(dev_name, "\n")] = '\0';
+        STRIP_NEWLINE(dev_name);
 
         logging_debug("Found hwmon device: %s -> %s", entry->d_name, dev_name);
 

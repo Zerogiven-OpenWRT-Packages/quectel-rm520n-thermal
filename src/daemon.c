@@ -129,7 +129,7 @@ static int find_modem_thermal_zone(void)
 
         char zone_type[DEVICE_NAME_LEN];
         if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
-            zone_type[strcspn(zone_type, "\n")] = '\0';
+            STRIP_NEWLINE(zone_type);
 
             /* Safety check: Skip system thermal zones */
             if (strstr(zone_type, "cpu") != NULL ||
@@ -262,7 +262,7 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 if (type_fp) {
                     char zone_type[DEVICE_NAME_LEN];
                     if (fgets(zone_type, sizeof(zone_type), type_fp) != NULL) {
-                        zone_type[strcspn(zone_type, "\n")] = '\0';
+                        STRIP_NEWLINE(zone_type);
                         logging_info("Thermal zone found: %s (type: %s)", entry->d_name, zone_type);
                         
                         // Note which zones are safe for modem temperature writing
@@ -425,30 +425,11 @@ int daemon_mode(volatile sig_atomic_t *shutdown_flag)
                 int modem_temp = 0, ap_temp = 0, pa_temp = 0;
                 if (extract_temp_values(response, &modem_temp, &ap_temp, &pa_temp,
                                        loop_config.temp_modem_prefix, loop_config.temp_ap_prefix, loop_config.temp_pa_prefix)) {
-                    // Find highest temperature
-                    int best_temp = modem_temp;
-                    if (ap_temp > best_temp) best_temp = ap_temp;
-                    if (pa_temp > best_temp) best_temp = pa_temp;
-
-                    // Validate temperature range before conversion to prevent overflow
-                    if (best_temp < (TEMP_ABSOLUTE_MIN / 1000) || best_temp > (TEMP_ABSOLUTE_MAX / 1000)) {
-                        logging_warning("Temperature %d°C out of valid range (%d to %d°C), skipping",
-                                       best_temp, TEMP_ABSOLUTE_MIN / 1000, TEMP_ABSOLUTE_MAX / 1000);
+                    int best_temp_mdeg;
+                    if (!select_best_temperature(modem_temp, ap_temp, pa_temp, &best_temp_mdeg)) {
                         g_stats.parse_errors++;
                         continue;
                     }
-
-                    // Convert to millidegrees and write to kernel interfaces
-                    int best_temp_mdeg = best_temp * 1000;
-                    char temp_str[32];
-                    if (snprintf(temp_str, sizeof(temp_str), "%d", best_temp_mdeg) >= sizeof(temp_str)) {
-                        logging_warning("Temperature millidegree string truncated, using fallback: N/A");
-                        SAFE_STRNCPY(temp_str, "N/A", sizeof(temp_str));
-                    }
-                    
-                    // Write to various kernel interfaces
-                    logging_debug("Temperature: %d°C (modem: %d°C, AP: %d°C, PA: %d°C)", 
-                               best_temp, modem_temp, ap_temp, pa_temp);
                     
                     // Increment successful read counter and reset failed cycles
                     g_stats.successful_reads++;

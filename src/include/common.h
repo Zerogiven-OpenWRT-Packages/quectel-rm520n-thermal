@@ -110,4 +110,9 @@
     (dst)[(size) - 1] = '\0'; \
 } while(0)
 
+/* Strip trailing newline from string - common pattern for fgets() results */
+#define STRIP_NEWLINE(str) do { \
+    if (str) (str)[strcspn((str), "\n")] = '\0'; \
+} while(0)
+
 #endif /* KMOD_COMMON_H */

@@ -58,8 +58,7 @@ static int validate_serial_port(const char *port)
     }
 
     /* Check for shell metacharacters */
-    if (strchr(port, ';') || strchr(port, '|') || strchr(port, '&') ||
-        strchr(port, '$') || strchr(port, '`') || strchr(port, '\n')) {
+    if (strpbrk(port, ";|&$`\n") != NULL) {
         return -1;
     }
 

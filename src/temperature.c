@@ -217,8 +217,47 @@ int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int
         return 0;
     }
     
-    logging_debug("extract_temp_values: success - modem:%d°C, AP:%d°C, PA:%d°C", 
+    logging_debug("extract_temp_values: success - modem:%d°C, AP:%d°C, PA:%d°C",
                  modem_temp ? *modem_temp : -999, ap_temp ? *ap_temp : -999, pa_temp ? *pa_temp : -999);
-    
+
     return 1; /* Success */
+}
+
+/**
+ * Select the best (highest) temperature from modem, AP, and PA readings
+ *
+ * Returns the highest temperature value after validating it falls within
+ * the acceptable range. Converts to millidegrees for kernel interface.
+ *
+ * @param modem_temp Modem temperature in °C
+ * @param ap_temp AP temperature in °C
+ * @param pa_temp PA temperature in °C
+ * @param result_mdeg Pointer to store result in millidegrees (°C * 1000)
+ * @return 1 on success, 0 if temperature out of valid range
+ */
+int select_best_temperature(int modem_temp, int ap_temp, int pa_temp, int *result_mdeg)
+{
+    if (!result_mdeg) {
+        return 0;
+    }
+
+    /* Find highest temperature */
+    int best_temp = modem_temp;
+    if (ap_temp > best_temp) best_temp = ap_temp;
+    if (pa_temp > best_temp) best_temp = pa_temp;
+
+    /* Validate temperature range (in °C) */
+    if (best_temp < TEMP_VALID_MIN || best_temp > TEMP_VALID_MAX) {
+        logging_warning("Temperature %d°C out of valid range (%d to %d°C)",
+                       best_temp, TEMP_VALID_MIN, TEMP_VALID_MAX);
+        return 0;
+    }
+
+    /* Convert to millidegrees */
+    *result_mdeg = best_temp * 1000;
+
+    logging_debug("select_best_temperature: best=%d°C (%d m°C) from modem=%d, ap=%d, pa=%d",
+                 best_temp, *result_mdeg, modem_temp, ap_temp, pa_temp);
+
+    return 1;
 }

@@ -44,4 +44,18 @@
 int extract_temp_values(const char *response, int *modem_temp, int *ap_temp, int *pa_temp,
                        const char *modem_prefix, const char *ap_prefix, const char *pa_prefix);
 
+/**
+ * Select the best (highest) temperature from modem, AP, and PA readings
+ *
+ * Returns the highest temperature value after validating it falls within
+ * the acceptable range (TEMP_ABSOLUTE_MIN/1000 to TEMP_ABSOLUTE_MAX/1000).
+ *
+ * @param modem_temp Modem temperature in °C
+ * @param ap_temp AP temperature in °C
+ * @param pa_temp PA temperature in °C
+ * @param result_mdeg Pointer to store result in millidegrees (°C * 1000)
+ * @return 1 on success, 0 if temperature out of valid range
+ */
+int select_best_temperature(int modem_temp, int ap_temp, int pa_temp, int *result_mdeg);
+
 #endif /* TEMPERATURE_H */
