@@ -242,9 +242,6 @@ jobs:
           #   arch: 'mipsel_24kc'
       fail-fast: false
 
-    concurrency:
-      group: ${{ matrix.openwrt_build_version }}
-
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@prometheus-node-exporter-lua-patch
     with:
       package_name: 'quectel-rm520n-thermal'
