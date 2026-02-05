@@ -193,54 +193,57 @@ jobs:
             arch: 'bcm27xx-bcm2711'
             target: 'bcm27xx/bcm2711'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.0'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.0'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.1'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.1'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.2'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.2'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.3'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.4'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.5'
-            arch: 'mips_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.5'
+          #   arch: 'mips_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.0'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.0'
+          #   arch: 'mipsel_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.1'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.1'
+          #   arch: 'mipsel_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.2'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.2'
+          #   arch: 'mipsel_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.3'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.3'
+          #   arch: 'mipsel_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.4'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.4'
+          #   arch: 'mipsel_24kc'
 
-          - openwrt_version: '24.10'
-            openwrt_build_version: '24.10.5'
-            arch: 'mipsel_24kc'
+          # - openwrt_version: '24.10'
+          #   openwrt_build_version: '24.10.5'
+          #   arch: 'mipsel_24kc'
       fail-fast: false
+
+    concurrency:
+      group: ${{ matrix.openwrt_build_version }}
 
     uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-build.yml@prometheus-node-exporter-lua-patch
     with:
