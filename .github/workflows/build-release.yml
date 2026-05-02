@@ -264,7 +264,7 @@ jobs:
     needs: build-packages
     permissions:
       contents: write
-    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-release.yml@main
+    uses: Zerogiven/gh-openwrt-package-build-workflows/.github/workflows/reusable-release.yml@prometheus-node-exporter-lua-patch
     with:
       artifact_pattern: 'quectel-rm520n-thermal-*'
       tag_name: ${{ github.ref_name }}
